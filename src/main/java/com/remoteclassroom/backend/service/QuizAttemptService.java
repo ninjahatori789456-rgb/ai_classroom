@@ -95,7 +95,7 @@ public class QuizAttemptService {
     // ✅ NEW METHOD ADDED (FIX)
     public String getUserDifficultyAdvanced(Long userId) {
 
-        List<QuizAttempt> attempts = attemptRepository.findByStudentId(userId);
+        List<QuizAttempt> attempts = attemptRepository.findByStudent_Id(userId);
 
         if (attempts.isEmpty()) {
             return "BEGINNER";
