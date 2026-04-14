@@ -92,6 +92,25 @@ public class QuizAttemptService {
         return new QuizAttemptResponse(score, questions.size(), weakTopicsList);
     }
 
+    // ✅ NEW METHOD ADDED (FIX)
+    public String getUserDifficultyAdvanced(Long userId) {
+
+        List<QuizAttempt> attempts = attemptRepository.findByStudentId(userId);
+
+        if (attempts.isEmpty()) {
+            return "BEGINNER";
+        }
+
+        double avgScore = attempts.stream()
+                .mapToInt(QuizAttempt::getScore)
+                .average()
+                .orElse(0);
+
+        if (avgScore >= 8) return "ADVANCED";
+        else if (avgScore >= 5) return "INTERMEDIATE";
+        else return "BEGINNER";
+    }
+
     private List<Map<String, Object>> parseQuestions(String json) {
         try {
             return mapper.readValue(json, new TypeReference<>() {});
