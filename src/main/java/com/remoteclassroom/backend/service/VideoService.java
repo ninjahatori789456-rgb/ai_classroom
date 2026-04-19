@@ -67,6 +67,15 @@ public class VideoService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public List<com.remoteclassroom.backend.dto.VideoDTO> getAllVideosDTO() {
+        return videoRepository.findAll().stream()
+                .map(v -> new com.remoteclassroom.backend.dto.VideoDTO(
+                        v.getId(), v.getTitle(), s3Service.generatePlaybackUrl(v.getUrl()),
+                        v.getTeacher().getName(), v.getBatch().getId(), v.getUploadedAt(), v.getTranscript()
+                ))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public List<Video> getAllVideos() {
         return videoRepository.findAll();
     }

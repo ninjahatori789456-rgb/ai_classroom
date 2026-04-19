@@ -54,6 +54,7 @@ public class S3Service {
         PutObjectRequest objectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(fileName)
+                .contentType("application/octet-stream")
                 .build();
 
         PutObjectPresignRequest presignRequest =

@@ -38,6 +38,6 @@ public class UserController {
         if (request.getName() != null) user.setName(request.getName());
         if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
 
-        return ResponseEntity.ok(userRepository.save(user));
+        return ResponseEntity.ok(userRepository.saveAndFlush(user));
     }
 }

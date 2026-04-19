@@ -51,6 +51,11 @@ public class VideoController {
         return ResponseEntity.ok(videoService.saveVideo(title, videoUrl, email, batchId, transcript));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getAllVideos() {
+        return ResponseEntity.ok(videoService.getAllVideosDTO());
+    }
+
     @GetMapping("/batch/{batchId}")
     public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getVideosByBatch(@PathVariable Long batchId) {
         return ResponseEntity.ok(videoService.getVideosByBatch(batchId));
