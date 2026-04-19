@@ -33,7 +33,7 @@ public class Video {
     private User teacher;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "batch_id", nullable = false)
+    @JoinColumn(name = "batch_id", nullable = true)
     private Batch batch;
 
     private LocalDateTime uploadedAt;
