@@ -32,6 +32,10 @@ public class Video {
     @JoinColumn(name = "teacher_id")
     private User teacher;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id", nullable = false)
+    private Batch batch;
+
     private LocalDateTime uploadedAt;
 
     @Lob
@@ -52,6 +56,9 @@ public class Video {
 
     // ✅ THIS WAS MISSING
     public User getTeacher() { return teacher; }
+
+    public Batch getBatch() { return batch; }
+    public void setBatch(Batch batch) { this.batch = batch; }
 
     // SETTERS
     public void setTitle(String title) { this.title = title; }

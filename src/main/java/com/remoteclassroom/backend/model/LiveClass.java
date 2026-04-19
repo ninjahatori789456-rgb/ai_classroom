@@ -27,6 +27,10 @@ public class LiveClass {
     @JoinColumn(name = "teacher_id")
     private User teacher;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id", nullable = false)
+    private Batch batch;
+
     private boolean isLive;
     private LocalDateTime startTime;
     private String meetingId;
@@ -43,6 +47,9 @@ public class LiveClass {
 
     public User getTeacher() { return teacher; }
     public void setTeacher(User teacher) { this.teacher = teacher; }
+
+    public Batch getBatch() { return batch; }
+    public void setBatch(Batch batch) { this.batch = batch; }
 
     public boolean isLive() { return isLive; }
     public void setLive(boolean live) { isLive = live; }

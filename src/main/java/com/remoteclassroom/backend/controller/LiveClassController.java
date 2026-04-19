@@ -1,139 +1,47 @@
 package com.remoteclassroom.backend.controller;
 
-import java.util.HashMap;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.remoteclassroom.backend.dto.LiveClassResponse;
-import com.remoteclassroom.backend.model.ClassParticipant;
 import com.remoteclassroom.backend.model.LiveClass;
 import com.remoteclassroom.backend.service.LiveClassService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/class")
+@RequestMapping("/api/live")
 public class LiveClassController {
 
     @Autowired
     private LiveClassService liveClassService;
 
     @PostMapping("/create")
-    public LiveClass createClass(
-            @RequestParam String title,
-            Authentication authentication
-    ) {
-        return liveClassService.createClass(title, authentication.getName());
+    public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> createClass(@RequestBody Map<String, Object> request, Authentication authentication) {
+        String title = (String) request.get("title");
+        Long batchId = Long.valueOf(request.get("batchId").toString());
+        String teacherEmail = authentication.getName();
+        return ResponseEntity.ok(liveClassService.createClass(title, teacherEmail, batchId));
     }
 
-    @GetMapping("/token/{id}")
-    public Object getToken(
-            @PathVariable Long id,
-            Authentication auth
-    ) {
+    @PostMapping("/start")
+    public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> startClass(@RequestBody Map<String, Long> request) {
+        Long classId = request.get("classId");
+        return ResponseEntity.ok(liveClassService.startClass(classId));
+    }
 
-        String user = auth.getName();
+    @PostMapping("/end")
+    public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> endClass(@RequestBody Map<String, Long> request) {
+        Long classId = request.get("classId");
+        return ResponseEntity.ok(liveClassService.endClass(classId));
+    }
 
-        LiveClass lc = liveClassService.getClassById(id);
-
-        if (!lc.isLive()) {
-            throw new RuntimeException("Class is not live");
+    @GetMapping("/status/{batchId}")
+    public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> getLiveStatus(@PathVariable Long batchId) {
+        com.remoteclassroom.backend.dto.LiveClassDTO lc = liveClassService.getLiveStatus(batchId);
+        if (lc != null) {
+            return ResponseEntity.ok(lc);
         }
-
-        // ✅ FIX: compare email instead of object
-        boolean isTeacher = lc.getTeacher().getEmail().equals(user);
-
-        if (!isTeacher && !liveClassService.isUserJoined(id, user)) {
-            throw new RuntimeException("Join class first");
-        }
-
-        String role = isTeacher ? "HOST" : "AUDIENCE";
-
-        String channel = lc.getMeetingId();
-
-        String token = "TEMP_TOKEN_" + user;
-
-        HashMap<String, Object> res = new HashMap<>();
-        res.put("token", token);
-        res.put("channel", channel);
-        res.put("role", role);
-        res.put("user", user);
-
-        return res;
-    }
-
-    @PostMapping("/start/{id}")
-public Object startClass(@PathVariable Long id) {
-
-    LiveClass lc = liveClassService.startClass(id);
-
-    return new com.remoteclassroom.backend.dto.LiveClassResponse(
-            lc.getId(),
-            lc.getTitle(),
-            lc.getTeacher().getEmail(),
-            lc.isLive(),
-            lc.getMeetingId()
-    );
-}
-
-    @PostMapping("/join/{id}")
-    public Object joinClass(@PathVariable Long id, Authentication auth) {
-
-        String student = auth.getName();
-
-        liveClassService.joinClass(id, student);
-        LiveClass lc = liveClassService.getClassById(id);
-
-        HashMap<String, Object> res = new HashMap<>();
-        res.put("classId", id);
-        res.put("meetingId", lc.getMeetingId());
-        res.put("user", student);
-
-        return res;
-    }
-
-    @PostMapping("/leave/{id}")
-    public Object leaveClass(@PathVariable Long id, Authentication auth) {
-
-        String student = auth.getName();
-
-        ClassParticipant cp = liveClassService.leaveClass(id, student);
-
-        HashMap<String, Object> res = new HashMap<>();
-        res.put("classId", id);
-        res.put("student", student);
-        res.put("durationSeconds", cp.getDurationSeconds());
-
-        return res;
-    }
-
-    @GetMapping("/live")
-public List<LiveClassResponse> getLiveClasses() {
-
-    return liveClassService.getLiveClasses().stream()
-            .map(lc -> new LiveClassResponse(
-                    lc.getId(),
-                    lc.getTitle(),
-                    lc.getTeacher().getEmail(),
-                    lc.isLive(),
-                    lc.getMeetingId()
-            ))
-            .toList();
-}
-
-    @GetMapping("/attendance/{id}")
-    public long getAttendance(@PathVariable Long id) {
-        return liveClassService.getAttendanceCount(id);
-    }
-
-    @GetMapping("/attendance/real/{id}")
-    public long getRealAttendance(@PathVariable Long id) {
-        return liveClassService.getPresentCount(id);
+        return ResponseEntity.noContent().build();
     }
 }

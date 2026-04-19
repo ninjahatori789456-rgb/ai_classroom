@@ -8,6 +8,9 @@ import com.remoteclassroom.backend.model.Video;
 import com.remoteclassroom.backend.repository.QuizRepository;
 import com.remoteclassroom.backend.repository.VideoRepository;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 public class QuizService {
 
@@ -20,39 +23,74 @@ public class QuizService {
     @Autowired
     private AIService aiService;
 
-    public Quiz getOrGenerateQuiz(Long videoId, String studentEmail) {
+    @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-        try {
-            // 1️⃣ Get video
-            Video video = videoRepository.findById(videoId)
-                    .orElseThrow(() -> new RuntimeException("Video not found"));
+    public com.remoteclassroom.backend.dto.QuizDTO generateAndSaveQuiz(Long videoId) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new RuntimeException("Video not found"));
 
-            // 2️⃣ Get transcript
-            String transcript = video.getTranscript();
-
-            if (transcript == null || transcript.isBlank()) {
-                throw new RuntimeException("Transcript not available");
-            }
-
-            // 3️⃣ Adaptive (disabled for now)
-            String weakTopic = null;
-
-            // 4️⃣ Generate quiz from AI
-            String questionsJson = aiService.generateQuiz(transcript, "MEDIUM", weakTopic);
-
-            // 5️⃣ Save quiz
-            Quiz quiz = new Quiz();
-            quiz.setVideo(video);
-            quiz.setTeacher(video.getTeacher());
-            quiz.setQuestionsJson(questionsJson);
-            quiz.setDifficulty("MEDIUM");
-            quiz.setTotalQuestions(10);
-
-            return quizRepository.save(quiz);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Quiz generation failed");
+        String transcript = video.getTranscript();
+        if (transcript == null || transcript.isBlank()) {
+            // Mock transcript if needed as per requirement
+            transcript = "This is a lecture about " + video.getTitle();
         }
+
+        String questionsJson = aiService.generateQuiz(transcript, "MEDIUM", null);
+        int questionCount = 0;
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(questionsJson);
+            if (root.isArray()) {
+                questionCount = root.size();
+            }
+        } catch (Exception e) {
+            questionCount = 1; // Fallback for dummy question
+        }
+
+        Quiz quiz = new Quiz();
+        quiz.setVideo(video);
+        quiz.setTeacher(video.getTeacher());
+        quiz.setBatch(video.getBatch());
+        quiz.setQuestionsJson(questionsJson);
+        quiz.setDifficulty("MEDIUM");
+        quiz.setTotalQuestions(questionCount);
+
+        Quiz savedQuiz = quizRepository.save(quiz);
+        return new com.remoteclassroom.backend.dto.QuizDTO(
+                savedQuiz.getId(), video.getId(), video.getBatch().getId(),
+                savedQuiz.getDifficulty(), parseJson(savedQuiz.getQuestionsJson()),
+                savedQuiz.getTotalQuestions(), savedQuiz.getCreatedAt()
+        );
+    }
+
+    public Optional<com.remoteclassroom.backend.dto.QuizDTO> getQuizByVideo(Long videoId) {
+        return quizRepository.findByVideoId(videoId)
+                .map(q -> new com.remoteclassroom.backend.dto.QuizDTO(
+                        q.getId(), q.getVideo().getId(), q.getBatch().getId(),
+                        q.getDifficulty(), parseJson(q.getQuestionsJson()),
+                        q.getTotalQuestions(), q.getCreatedAt()
+                ));
+    }
+
+    public List<com.remoteclassroom.backend.dto.QuizDTO> getQuizzesByBatch(Long batchId) {
+        return quizRepository.findByBatchId(batchId).stream()
+                .map(q -> new com.remoteclassroom.backend.dto.QuizDTO(
+                        q.getId(), q.getVideo().getId(), q.getBatch().getId(),
+                        q.getDifficulty(), parseJson(q.getQuestionsJson()),
+                        q.getTotalQuestions(), q.getCreatedAt()
+                ))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private Object parseJson(String json) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            return json; // Fallback to raw string if parsing fails
+        }
+    }
+
+    public Quiz saveQuiz(Quiz quiz) {
+        return quizRepository.save(quiz);
     }
 }

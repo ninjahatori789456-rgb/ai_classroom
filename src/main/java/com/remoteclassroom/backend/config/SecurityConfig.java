@@ -43,25 +43,27 @@ public class SecurityConfig {
                 // ✅ Bug Fix #2: Video listing — public (no login required)
                 .requestMatchers(HttpMethod.GET, "/api/video/all").permitAll()
 
-                // 🔒 Specific role-protected routes
+                // 🔒 Batch management
+                .requestMatchers("/api/batch/create").hasRole("TEACHER")
+                .requestMatchers("/api/batch/join").hasRole("STUDENT")
+                .requestMatchers("/api/batch/my").authenticated()
+
+                // 🔒 Video management
+                .requestMatchers(HttpMethod.POST, "/api/video/**").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/api/video/batch/**").authenticated()
+
+                // 🔒 Quiz management
+                .requestMatchers("/api/quiz/generate").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET, "/api/quiz/**").authenticated()
                 .requestMatchers("/api/quiz/submit").hasRole("STUDENT")
+
+                // 🔒 Live Class management
+                .requestMatchers("/api/live/create", "/api/live/start", "/api/live/end").hasRole("TEACHER")
+                .requestMatchers("/api/live/status/**").authenticated()
+
+                // 🔒 Other existing routes
                 .requestMatchers("/api/student/**").hasRole("STUDENT")
                 .requestMatchers("/api/teacher/**").hasRole("TEACHER")
-
-                // 🔒 Video management — teachers only (upload, save, etc.)
-                .requestMatchers("/api/video/**").hasRole("TEACHER")
-
-                // 🔒 Quiz video generation — public, quiz submit — student only
-                .requestMatchers("/api/quiz/video/**").permitAll()
-
-                // 🔒 Class management
-                .requestMatchers("/api/class/create").hasRole("TEACHER")
-                .requestMatchers("/api/class/start/**").hasRole("TEACHER")
-                .requestMatchers("/api/class/join/**").hasRole("STUDENT")
-                .requestMatchers("/api/class/leave/**").hasRole("STUDENT")
-                .requestMatchers("/api/class/**").authenticated()
-
-                // 🔒 User and video download — authenticated
                 .requestMatchers("/api/user/**").authenticated()
                 .requestMatchers("/api/video/download/**").authenticated()
 

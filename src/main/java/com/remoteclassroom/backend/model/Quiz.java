@@ -34,6 +34,10 @@ public class Quiz {
     @JoinColumn(name = "teacher_id")
     private User teacher;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id", nullable = false)
+    private Batch batch;
+
     private String difficulty;
 
     @Lob
@@ -57,7 +61,14 @@ public class Quiz {
 
     // SETTERS
     public void setVideo(Video video) { this.video = video; }
+    public Video getVideo() { return video; }
+
     public void setTeacher(User teacher) { this.teacher = teacher; }
+    public User getTeacher() { return teacher; }
+
+    public void setBatch(Batch batch) { this.batch = batch; }
+    public Batch getBatch() { return batch; }
+
     public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
     public void setQuestionsJson(String questionsJson) { this.questionsJson = questionsJson; }
     public void setTotalQuestions(int totalQuestions) { this.totalQuestions = totalQuestions; }

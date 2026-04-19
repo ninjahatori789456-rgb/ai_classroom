@@ -29,6 +29,8 @@ public class RegisterRequest {
     )
     private String role;
 
+    private String phoneNumber;
+
     // Getters & Setters
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -41,4 +43,7 @@ public class RegisterRequest {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 }

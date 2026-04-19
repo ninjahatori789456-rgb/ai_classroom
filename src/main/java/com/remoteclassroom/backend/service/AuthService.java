@@ -29,6 +29,7 @@ public class AuthService {
         user.setEmail(request.getEmail().toLowerCase().trim());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole().toUpperCase()); // Store plain (STUDENT/TEACHER)
+        user.setPhoneNumber(request.getPhoneNumber());
 
         return userRepository.save(user);
     }

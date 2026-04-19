@@ -94,11 +94,12 @@ Lecture:
         );
 
         try {
-            // We run cleanJson here specifically to protect the JSON parser 
-            // without destroying the Doubt API logic above.
+            // System.out.println("DEBUG: Sending Prompt to Gemini: " + prompt);
             String rawResponse = callGeminiCore(prompt);
+            System.out.println("DEBUG: Raw Gemini Response: " + rawResponse);
             return cleanJson(rawResponse);
         } catch (Exception e) {
+            System.err.println("❌ GEMINI ERROR: " + e.getMessage());
             e.printStackTrace();
             return """
 [
