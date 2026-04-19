@@ -55,4 +55,10 @@ public class VideoController {
     public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getVideosByBatch(@PathVariable Long batchId) {
         return ResponseEntity.ok(videoService.getVideosByBatch(batchId));
     }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getMyVideos(Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(videoService.getMyVideos(email));
+    }
 }

@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/ai")
+@RequestMapping("/api")
 public class AIController {
 
     @Autowired
@@ -17,7 +17,6 @@ public class AIController {
     public String solveDoubt(@RequestBody DoubtRequest request) {
         return aiService.getAnswer(
                 request.getQuestion(),
-                request.getLanguage()
-        );
+                request.getLanguage());
     }
 }
