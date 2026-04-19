@@ -72,13 +72,9 @@ public class S3Service {
         return "https://" + bucketName + ".s3.ap-south-1.amazonaws.com/" + fileName;
     }
 
-    // ================= DOWNLOAD (NEW & SECURE) =================
+    // ================= DOWNLOAD (FORCE ATTACHMENT) =================
     public String generateDownloadUrl(String fileUrl, String title) {
-
-        // extract file name from URL
         String key = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
-        
-        // Force browser to download instead of playing inline
         String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9.-]", "_");
         String contentDisposition = "attachment; filename=\"" + sanitizedTitle + ".mp4\"";
 
@@ -89,7 +85,25 @@ public class S3Service {
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofMinutes(15)) // URL expires in 15 mins for security
+                .signatureDuration(Duration.ofMinutes(60))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
+    }
+
+    // ================= PLAYBACK (STREAMING) =================
+    public String generatePlaybackUrl(String fileUrl) {
+        if (fileUrl == null || !fileUrl.contains("/")) return fileUrl;
+        String key = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofHours(2))
                 .getObjectRequest(getObjectRequest)
                 .build();
 

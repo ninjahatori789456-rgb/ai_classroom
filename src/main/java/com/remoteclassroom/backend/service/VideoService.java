@@ -28,6 +28,9 @@ public class VideoService {
     @Autowired
     private TranscriptionService transcriptionService;
 
+    @Autowired
+    private S3Service s3Service;
+
     public com.remoteclassroom.backend.dto.VideoDTO saveVideo(String title, String url, String email, Long batchId, String transcript) {
 
         User teacher = userRepository.findByEmail(email)
@@ -50,7 +53,7 @@ public class VideoService {
         transcriptionService.transcribeVideoAsync(savedVideo);
 
         return new com.remoteclassroom.backend.dto.VideoDTO(
-                savedVideo.getId(), savedVideo.getTitle(), savedVideo.getUrl(),
+                savedVideo.getId(), savedVideo.getTitle(), s3Service.generatePlaybackUrl(savedVideo.getUrl()),
                 teacher.getName(), batch.getId(), savedVideo.getUploadedAt(), savedVideo.getTranscript()
         );
     }
@@ -58,7 +61,7 @@ public class VideoService {
     public List<com.remoteclassroom.backend.dto.VideoDTO> getVideosByBatch(Long batchId) {
         return videoRepository.findByBatchId(batchId).stream()
                 .map(v -> new com.remoteclassroom.backend.dto.VideoDTO(
-                        v.getId(), v.getTitle(), v.getUrl(),
+                        v.getId(), v.getTitle(), s3Service.generatePlaybackUrl(v.getUrl()),
                         v.getTeacher().getName(), v.getBatch().getId(), v.getUploadedAt(), v.getTranscript()
                 ))
                 .collect(java.util.stream.Collectors.toList());
