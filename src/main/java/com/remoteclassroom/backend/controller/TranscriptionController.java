@@ -49,7 +49,7 @@ public class TranscriptionController {
             }
 
             // FIRE AND FORGET (ASYNC)
-            transcriptionService.transcribeVideoAsync(video);
+            transcriptionService.transcribeVideoAsync(video.getId());
 
             return ResponseEntity.accepted().body(java.util.Map.of(
                     "status", "processing",

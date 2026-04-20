@@ -1,5 +1,6 @@
 package com.remoteclassroom.backend.service;
 
+import com.remoteclassroom.backend.dto.BatchDTO;
 import com.remoteclassroom.backend.model.Batch;
 import com.remoteclassroom.backend.model.Enrollment;
 import com.remoteclassroom.backend.model.User;
@@ -16,8 +17,6 @@ import java.util.stream.Collectors;
 @Service
 public class BatchService {
 
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BatchService.class);
-
     @Autowired
     private BatchRepository batchRepository;
 
@@ -27,82 +26,76 @@ public class BatchService {
     @Autowired
     private UserRepository userRepository;
 
-    public com.remoteclassroom.backend.dto.BatchDTO createBatch(String name, String subject, String teacherEmail) {
-        log.info("Creating batch: {} for teacher: {}", name, teacherEmail);
+    // ✅ CREATE
+    public BatchDTO createBatch(String name, String subject, String teacherEmail) {
         User teacher = userRepository.findByEmail(teacherEmail)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
-        String batchCode = generateBatchCode(subject);
-        Batch batch = new Batch(name, subject, batchCode, teacher);
-        Batch saved = batchRepository.save(batch);
-        log.info("Batch created with ID: {} and code: {}", saved.getId(), saved.getBatchCode());
-        return mapToDTO(saved);
+        String code = generateBatchCode(subject);
+        Batch batch = new Batch(name, subject, code, teacher);
+
+        return map(batchRepository.save(batch));
     }
 
-    public com.remoteclassroom.backend.dto.BatchDTO joinBatch(String batchCode, String studentEmail) {
-        log.info("Student {} joining batch with code: {}", studentEmail, batchCode);
-        if (batchCode == null) {
-            throw new RuntimeException("Batch code is missing in request");
-        }
-        
-        String trimmedCode = batchCode.trim();
-        
-        User student = userRepository.findByEmail(studentEmail)
+    // ✅ JOIN
+    public BatchDTO joinBatch(String code, String email) {
+        User student = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
 
-        Batch batch = batchRepository.findByBatchCodeIgnoreCase(trimmedCode)
-                .orElseThrow(() -> new RuntimeException("Invalid Batch Code"));
+        Batch batch = batchRepository.findByBatchCodeIgnoreCase(code.trim())
+                .orElseThrow(() -> new RuntimeException("Invalid code"));
 
         if (enrollmentRepository.findByStudentAndBatch(student, batch).isPresent()) {
-            throw new RuntimeException("Already enrolled in this batch");
+            throw new RuntimeException("Already joined");
         }
 
-        Enrollment enrollment = new Enrollment(student, batch);
-        enrollmentRepository.save(enrollment);
-        log.info("Student enrolled successfully");
-        
-        return mapToDTO(batch);
+        enrollmentRepository.save(new Enrollment(student, batch));
+        return map(batch);
     }
 
-    public List<com.remoteclassroom.backend.dto.BatchDTO> getStudentBatches(String studentEmail) {
-        User student = userRepository.findByEmail(studentEmail)
+    // ✅ STUDENT
+    public List<BatchDTO> getStudentBatches(String email) {
+        User student = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
 
         return enrollmentRepository.findByStudent(student)
                 .stream()
-                .map(enrollment -> mapToDTO(enrollment.getBatch()))
+                .map(e -> map(e.getBatch()))
                 .collect(Collectors.toList());
     }
 
-    public List<com.remoteclassroom.backend.dto.BatchDTO> getTeacherBatches(String teacherEmail) {
-        User teacher = userRepository.findByEmail(teacherEmail)
+    // ✅ TEACHER
+    public List<BatchDTO> getTeacherBatches(String email) {
+        User teacher = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
         return batchRepository.findByTeacher(teacher)
                 .stream()
-                .map(this::mapToDTO)
+                .map(this::map)
                 .collect(Collectors.toList());
     }
 
-    public Batch getBatchById(Long batchId) {
-        return batchRepository.findById(batchId)
-                .orElseThrow(() -> new RuntimeException("Batch not found"));
+    // ✅🔥 EXPLORE COURSES (MAIN FIX)
+    public List<BatchDTO> getAllBatches() {
+        return batchRepository.findAll()
+                .stream()
+                .map(this::map)
+                .collect(Collectors.toList());
     }
 
-    private com.remoteclassroom.backend.dto.BatchDTO mapToDTO(Batch b) {
-        if (b == null) return null;
-        return new com.remoteclassroom.backend.dto.BatchDTO(
-            b.getId(), 
-            b.getName(), 
-            b.getSubject(), 
-            b.getBatchCode(), 
-            b.getTeacher() != null ? b.getTeacher().getName() : "Unknown"
+    // ✅ DTO MAPPING
+    private BatchDTO map(Batch b) {
+        return new BatchDTO(
+                b.getId(),
+                b.getName(),
+                b.getSubject(),
+                b.getBatchCode(),
+                b.getTeacher() != null ? b.getTeacher().getName() : "Unknown"
         );
     }
 
     private String generateBatchCode(String subject) {
         String prefix = subject.substring(0, Math.min(subject.length(), 3)).toUpperCase();
-        int randomNum = new Random().nextInt(900) + 100; // 100 to 999
-        return prefix + "-" + randomNum;
+        return prefix + "-" + (new Random().nextInt(900) + 100);
     }
 }

@@ -16,8 +16,10 @@ import com.remoteclassroom.backend.repository.BatchRepository;
 import com.remoteclassroom.backend.repository.ClassParticipantRepository;
 import com.remoteclassroom.backend.repository.LiveClassRepository;
 import com.remoteclassroom.backend.repository.UserRepository;
+
 import io.agora.media.RtcTokenBuilder;
 import org.springframework.beans.factory.annotation.Value;
+
 import com.remoteclassroom.backend.model.Attendance;
 
 @Service
@@ -44,6 +46,7 @@ public class LiveClassService {
     @Value("${AGORA_APP_CERTIFICATE}")
     private String appCertificate;
 
+    // ================= CREATE =================
     public com.remoteclassroom.backend.dto.LiveClassDTO createClass(String title, String teacherEmail, Long batchId) {
 
         User teacher = userRepository.findByEmail(teacherEmail)
@@ -52,7 +55,7 @@ public class LiveClassService {
         Batch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new RuntimeException("Batch not found"));
 
-        // 🔒 SECURITY CHECK: Ensure teacher owns this batch
+        // 🔒 SECURITY CHECK
         if (!batch.getTeacher().getEmail().equals(teacherEmail)) {
             throw new RuntimeException("Unauthorized: You are not the teacher of this batch");
         }
@@ -68,6 +71,7 @@ public class LiveClassService {
         return mapToDTO(saved);
     }
 
+    // ================= START =================
     public com.remoteclassroom.backend.dto.LiveClassDTO startClass(Long classId) {
         LiveClass lc = liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
@@ -79,6 +83,7 @@ public class LiveClassService {
         return mapToDTO(saved);
     }
 
+    // ================= END =================
     public com.remoteclassroom.backend.dto.LiveClassDTO endClass(Long classId) {
         LiveClass lc = liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
@@ -86,18 +91,17 @@ public class LiveClassService {
         lc.setLive(false);
         LiveClass saved = liveClassRepository.save(lc);
 
-        // 🚀 AUTO-LEAVE: Update all students who haven't left yet
+        // 🚀 AUTO-LEAVE
         List<Attendance> activeAttendance = attendanceRepository.findByLiveClass(lc);
         for (Attendance a : activeAttendance) {
             if (a.getLeaveTime() == null) {
                 a.setLeaveTime(LocalDateTime.now());
-                
-                // Calculate presence on auto-leave too
+
                 java.time.Duration duration = java.time.Duration.between(a.getJoinTime(), a.getLeaveTime());
                 if (duration.toMinutes() >= 5) {
                     a.setPresent(true);
                 }
-                
+
                 attendanceRepository.save(a);
             }
         }
@@ -105,28 +109,45 @@ public class LiveClassService {
         return mapToDTO(saved);
     }
 
-    public List<LiveClass> getLiveClassesByBatch(Long batchId) {
-        return liveClassRepository.findByBatchId(batchId);
-    }
-
+    // ================= STATUS =================
     public com.remoteclassroom.backend.dto.LiveClassDTO getLiveStatus(Long batchId) {
         return liveClassRepository.findFirstByBatchIdAndIsLiveTrue(batchId)
                 .map(this::mapToDTO)
                 .orElse(null);
     }
 
+    // ================= 🔥 FIXED DTO MAPPING =================
     private com.remoteclassroom.backend.dto.LiveClassDTO mapToDTO(LiveClass lc) {
+
+        String teacherName = "Unknown";
+        String batchName = "Unknown";
+
+        if (lc.getTeacher() != null) {
+            teacherName = lc.getTeacher().getName();
+        }
+
+        if (lc.getBatch() != null) {
+            batchName = lc.getBatch().getName();
+        }
+
         return new com.remoteclassroom.backend.dto.LiveClassDTO(
-                lc.getId(), lc.getTitle(), lc.isLive(), lc.getMeetingId(), lc.getStartTime()
+                lc.getId(),
+                lc.getTitle(),
+                lc.isLive(),
+                lc.getMeetingId(),
+                lc.getStartTime(),
+                teacherName,
+                batchName
         );
     }
 
+    // ================= JOIN =================
     public void joinClass(Long classId, String email) {
         User student = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!student.getRole().equals("ROLE_STUDENT") && !student.getRole().equals("STUDENT")) {
-            throw new RuntimeException("Only students can join as attendees");
+            throw new RuntimeException("Only students can join");
         }
 
         LiveClass liveClass = liveClassRepository.findById(classId)
@@ -136,8 +157,8 @@ public class LiveClassService {
             throw new RuntimeException("Class is not live");
         }
 
-        // Handle re-join logic
         Attendance existing = attendanceRepository.findByLiveClassAndStudent(liveClass, student).orElse(null);
+
         if (existing != null) {
             existing.setJoinTime(LocalDateTime.now());
             existing.setLeaveTime(null);
@@ -149,11 +170,12 @@ public class LiveClassService {
         attendance.setLiveClass(liveClass);
         attendance.setStudent(student);
         attendance.setJoinTime(LocalDateTime.now());
-        attendance.setPresent(false); // Default to false until duration met
+        attendance.setPresent(false);
 
         attendanceRepository.save(attendance);
     }
 
+    // ================= LEAVE =================
     public void leaveClass(Long classId, String email) {
         User student = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -165,11 +187,10 @@ public class LiveClassService {
                 .findByLiveClassAndStudent(liveClass, student)
                 .orElse(null);
 
-        if (attendance == null) return; // Silently ignore if no join record exists
+        if (attendance == null) return;
 
         attendance.setLeaveTime(LocalDateTime.now());
-        
-        // 🎯 Duration Check: Mark present only if stayed >= 5 minutes
+
         java.time.Duration duration = java.time.Duration.between(attendance.getJoinTime(), attendance.getLeaveTime());
         if (duration.toMinutes() >= 5) {
             attendance.setPresent(true);
@@ -178,13 +199,13 @@ public class LiveClassService {
         attendanceRepository.save(attendance);
     }
 
+    // ================= ATTENDANCE =================
     public List<com.remoteclassroom.backend.dto.AttendanceDTO> getAttendance(Long classId, String teacherEmail) {
         LiveClass liveClass = liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
 
-        // 🔒 SECURITY CHECK: Only the teacher of this batch can see attendance
         if (!liveClass.getTeacher().getEmail().equals(teacherEmail)) {
-            throw new RuntimeException("Unauthorized: Only the assigned teacher can view attendance.");
+            throw new RuntimeException("Unauthorized");
         }
 
         return attendanceRepository.findByLiveClass(liveClass).stream()
@@ -194,27 +215,31 @@ public class LiveClassService {
                         a.getJoinTime(),
                         a.getLeaveTime()
                 ))
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
     }
 
+    // ================= GET =================
     public LiveClass getById(Long classId) {
         return liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
     }
 
+    // ================= TOKEN =================
     public String getAgoraToken(Long classId, int uid) {
         LiveClass lc = liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
 
         if (appId == null || appId.isEmpty() || appCertificate == null || appCertificate.isEmpty()) {
-            throw new RuntimeException("Agora credentials not configured in backend");
+            throw new RuntimeException("Agora config missing");
         }
 
-        String channelName = lc.getMeetingId(); // Using UUID as channel name
+        String channelName = lc.getMeetingId();
+
         int expirationTimeInSeconds = 3600;
         int timestamp = (int) (System.currentTimeMillis() / 1000 + expirationTimeInSeconds);
 
         RtcTokenBuilder tokenBuilder = new RtcTokenBuilder();
+
         return tokenBuilder.buildTokenWithUid(
                 appId,
                 appCertificate,

@@ -13,11 +13,6 @@ import com.remoteclassroom.backend.repository.BatchRepository;
 import com.remoteclassroom.backend.repository.EnrollmentRepository;
 import com.remoteclassroom.backend.repository.UserRepository;
 import com.remoteclassroom.backend.repository.VideoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,28 +54,31 @@ public class VideoService {
         video.setUrl(url);
         video.setTeacher(teacher);
         video.setBatch(batch);
-        video.setTranscript(transcript);
+
+        // 🔥 FIX: transcript initially null
+        video.setTranscript(null);
+
         video.setUploadedAt(LocalDateTime.now());
 
         Video savedVideo = videoRepository.save(video);
         log.info("Video saved with ID: {}", savedVideo.getId());
 
-        // 🔥 Trigger AI Transcription in background
-        transcriptionService.transcribeVideoAsync(savedVideo);
+        // 🔥 FIX: pass ID instead of entity
+        transcriptionService.transcribeVideoAsync(savedVideo.getId());
 
         return mapToDTO(savedVideo);
     }
 
     public List<com.remoteclassroom.backend.dto.VideoDTO> getVideosByBatch(Long batchId) {
         return videoRepository.findByBatchId(batchId).stream()
-                .filter(v -> v.getBatch() != null) // Filter out bad data
+                .filter(v -> v.getBatch() != null)
                 .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
     }
 
     public List<com.remoteclassroom.backend.dto.VideoDTO> getAllVideosDTO() {
         return videoRepository.findAll().stream()
-                .filter(v -> v.getBatch() != null) // Filter out bad data
+                .filter(v -> v.getBatch() != null)
                 .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
     }
@@ -91,7 +89,7 @@ public class VideoService {
 
     public List<com.remoteclassroom.backend.dto.VideoDTO> getMyVideos(String email) {
         return videoRepository.findByTeacher_Email(email).stream()
-                .filter(v -> v.getBatch() != null) // Filter out bad data
+                .filter(v -> v.getBatch() != null)
                 .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
     }
@@ -128,7 +126,7 @@ public class VideoService {
         return new com.remoteclassroom.backend.dto.VideoDTO(
                 v.getId(),
                 v.getTitle(),
-                s3Service.generatePlaybackUrl(v.getUrl()),
+                v.getUrl() != null ? s3Service.generatePlaybackUrl(v.getUrl()) : "",
                 v.getTeacher() != null ? v.getTeacher().getName() : "Unknown",
                 v.getBatch() != null ? v.getBatch().getId() : null,
                 v.getBatch() != null ? v.getBatch().getName() : "General",

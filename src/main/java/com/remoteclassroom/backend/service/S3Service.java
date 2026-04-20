@@ -73,7 +73,7 @@ public class S3Service {
         return "https://" + bucketName + ".s3.ap-south-1.amazonaws.com/" + fileName;
     }
 
-    // ================= DOWNLOAD (FORCE ATTACHMENT) =================
+    // ================= DOWNLOAD =================
     public String generateDownloadUrl(String fileUrl, String title) {
         String key = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
         String sanitizedTitle = title.replaceAll("[^a-zA-Z0-9.-]", "_");
@@ -93,21 +93,28 @@ public class S3Service {
         return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
-    // ================= PLAYBACK (STREAMING) =================
+    // ================= PLAYBACK (FIXED) =================
     public String generatePlaybackUrl(String fileUrl) {
-        if (fileUrl == null || !fileUrl.contains("/")) return fileUrl;
-        String key = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+        try {
+            if (fileUrl == null || !fileUrl.contains("/")) return fileUrl;
 
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(bucketName)
-                .key(key)
-                .build();
+            String key = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
 
-        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofHours(2))
-                .getObjectRequest(getObjectRequest)
-                .build();
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
 
-        return s3Presigner.presignGetObject(presignRequest).url().toString();
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofHours(2))
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            return s3Presigner.presignGetObject(presignRequest).url().toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return fileUrl; // fallback
+        }
     }
 }

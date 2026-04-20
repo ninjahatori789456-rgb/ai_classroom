@@ -8,13 +8,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/video")
+@CrossOrigin(origins = "*")
 public class VideoController {
 
     @Autowired
@@ -22,6 +20,16 @@ public class VideoController {
 
     @Autowired
     private S3Service s3Service;
+
+    @GetMapping("/play/{videoId}")
+    public ResponseEntity<Map<String, String>> getPlayUrl(@PathVariable Long videoId) {
+        Video video = videoService.getById(videoId);
+        String playUrl = s3Service.generatePlaybackUrl(video.getUrl());
+        return ResponseEntity.ok(Map.of(
+            "url", playUrl,
+            "title", video.getTitle()
+        ));
+    }
 
     @PostMapping("/upload-url")
     public ResponseEntity<Map<String, String>> getUploadUrl(@RequestBody Map<String, String> request) {
@@ -40,13 +48,16 @@ public class VideoController {
     public ResponseEntity<com.remoteclassroom.backend.dto.VideoDTO> saveVideo(
             @jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.VideoSaveRequest request,
             Authentication authentication) {
-        String title = request.getTitle();
-        String videoUrl = request.getVideoUrl();
-        Long batchId = request.getBatchId();
-        String transcript = request.getTranscript();
-        String email = authentication.getName();
 
-        return ResponseEntity.ok(videoService.saveVideo(title, videoUrl, email, batchId, transcript));
+        return ResponseEntity.ok(
+                videoService.saveVideo(
+                        request.getTitle(),
+                        request.getVideoUrl(),
+                        authentication.getName(),
+                        request.getBatchId(),
+                        request.getTranscript()
+                )
+        );
     }
 
     @GetMapping("/all")
@@ -62,6 +73,7 @@ public class VideoController {
     @GetMapping("/my")
     public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getMyVideos(Authentication authentication) {
         String email = authentication.getName();
+
         boolean isTeacher = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().contains("TEACHER"));
 
@@ -70,5 +82,19 @@ public class VideoController {
         } else {
             return ResponseEntity.ok(videoService.getVideosInEnrolledBatches(email));
         }
+    }
+
+    // 🔥 NEW DOWNLOAD API
+    @GetMapping("/download/{videoId}")
+    public ResponseEntity<Map<String, String>> downloadVideo(@PathVariable Long videoId) {
+
+        Video video = videoService.getById(videoId);
+
+        String downloadUrl = s3Service.generateDownloadUrl(
+                video.getUrl(),
+                video.getTitle()
+        );
+
+        return ResponseEntity.ok(Map.of("url", downloadUrl));
     }
 }
