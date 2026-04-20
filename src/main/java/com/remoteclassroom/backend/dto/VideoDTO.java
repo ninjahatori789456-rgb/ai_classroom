@@ -15,6 +15,7 @@ public class VideoDTO {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime uploadedAt;
     private String transcript;
+    private String transcriptionStatus;
 
     public VideoDTO() {}
 
@@ -28,6 +29,7 @@ public class VideoDTO {
         this.batchCode = batchCode;
         this.uploadedAt = uploadedAt;
         this.transcript = transcript;
+        this.transcriptionStatus = (transcript != null && !transcript.isBlank()) ? "COMPLETED" : "PENDING";
     }
 
     public Long getId() { return id; }
@@ -55,5 +57,12 @@ public class VideoDTO {
     public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
 
     public String getTranscript() { return transcript; }
-    public void setTranscript(String transcript) { this.transcript = transcript; }
+    public void setTranscript(String transcript) { 
+        this.transcript = transcript;
+        this.transcriptionStatus = (transcript != null && !transcript.isBlank()) ? "COMPLETED" : "PENDING";
+    }
+
+    public String getTranscriptionStatus() {
+        return transcriptionStatus;
+    }
 }
