@@ -17,9 +17,9 @@ public class LiveClassController {
     private LiveClassService liveClassService;
 
     @PostMapping("/create")
-    public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> createClass(@RequestBody Map<String, Object> request, Authentication authentication) {
-        String title = (String) request.get("title");
-        Long batchId = Long.valueOf(request.get("batchId").toString());
+    public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> createClass(@jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.LiveClassRequest request, Authentication authentication) {
+        String title = request.getTitle();
+        Long batchId = request.getBatchId();
         String teacherEmail = authentication.getName();
         return ResponseEntity.ok(liveClassService.createClass(title, teacherEmail, batchId));
     }

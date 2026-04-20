@@ -39,6 +39,11 @@ public class LiveClassService {
         Batch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new RuntimeException("Batch not found"));
 
+        // 🔒 SECURITY CHECK: Ensure teacher owns this batch
+        if (!batch.getTeacher().getEmail().equals(teacherEmail)) {
+            throw new RuntimeException("Unauthorized: You are not the teacher of this batch");
+        }
+
         LiveClass lc = new LiveClass();
         lc.setTitle(title);
         lc.setTeacher(teacher);
