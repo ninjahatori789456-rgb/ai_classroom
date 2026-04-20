@@ -3,6 +3,7 @@ package com.remoteclassroom.backend.controller;
 import com.remoteclassroom.backend.model.LiveClass;
 import com.remoteclassroom.backend.service.LiveClassService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,9 @@ public class LiveClassController {
 
     @Autowired
     private LiveClassService liveClassService;
+
+    @Value("${AGORA_APP_ID}")
+    private String appId;
 
     @PostMapping("/create")
     public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> createClass(@jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.LiveClassRequest request, Authentication authentication) {
@@ -66,6 +70,13 @@ public class LiveClassController {
     @GetMapping("/token/{classId}")
     public ResponseEntity<?> getToken(@PathVariable Long classId, @RequestParam(defaultValue = "0") int uid) {
         String token = liveClassService.getAgoraToken(classId, uid);
-        return ResponseEntity.ok(Map.of("token", token));
+        LiveClass lc = liveClassService.getById(classId);
+        
+        return ResponseEntity.ok(Map.of(
+            "token", token,
+            "channel", lc.getMeetingId(),
+            "meetingId", lc.getMeetingId(),
+            "appId", appId
+        ));
     }
 }

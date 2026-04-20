@@ -197,6 +197,11 @@ public class LiveClassService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public LiveClass getById(Long classId) {
+        return liveClassRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+    }
+
     public String getAgoraToken(Long classId, int uid) {
         LiveClass lc = liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
