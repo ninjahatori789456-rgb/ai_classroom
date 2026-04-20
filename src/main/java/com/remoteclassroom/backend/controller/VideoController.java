@@ -37,7 +37,9 @@ public class VideoController {
     }
 
     @PostMapping("/save")
-    public ResponseEntity<com.remoteclassroom.backend.dto.VideoDTO> saveVideo(@jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.VideoSaveRequest request, Authentication authentication) {
+    public ResponseEntity<com.remoteclassroom.backend.dto.VideoDTO> saveVideo(
+            @jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.VideoSaveRequest request,
+            Authentication authentication) {
         String title = request.getTitle();
         String videoUrl = request.getVideoUrl();
         Long batchId = request.getBatchId();
@@ -62,7 +64,7 @@ public class VideoController {
         String email = authentication.getName();
         boolean isTeacher = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().contains("TEACHER"));
-        
+
         if (isTeacher) {
             return ResponseEntity.ok(videoService.getVideosInTeacherBatches(email));
         } else {

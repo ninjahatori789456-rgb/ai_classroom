@@ -61,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/live/create", "/api/live/start", "/api/live/end").hasRole("TEACHER")
                         .requestMatchers("/api/live/status/**").authenticated()
                         .requestMatchers("/api/ai/doubt").authenticated()
+                        .requestMatchers("/api/agora/token").authenticated()
 
                         // 🔒 Other existing routes
                         .requestMatchers("/api/student/**").hasRole("STUDENT")
