@@ -17,10 +17,19 @@ public class LiveClassDTO {
         this.startTime = startTime;
     }
 
-    // Getters
+    // Getters and Setters
     public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
     public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
     public boolean isLive() { return isLive; }
+    public void setLive(boolean live) { isLive = live; }
+
     public String getMeetingId() { return meetingId; }
+    public void setMeetingId(String meetingId) { this.meetingId = meetingId; }
+
     public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
 }
