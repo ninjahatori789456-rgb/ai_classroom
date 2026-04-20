@@ -12,4 +12,6 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
     List<Video> findByTeacher_Email(String email);
 
     List<Video> findByBatchId(Long batchId);
+    
+    List<Video> findByBatchIn(java.util.Collection<com.remoteclassroom.backend.model.Batch> batches);
 }

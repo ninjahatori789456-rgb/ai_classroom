@@ -8,17 +8,21 @@ public class VideoDTO {
     private String url;
     private String teacherName;
     private Long batchId;
+    private String batchName;
+    private String batchCode;
     private LocalDateTime uploadedAt;
     private String transcript;
 
     public VideoDTO() {}
 
-    public VideoDTO(Long id, String title, String url, String teacherName, Long batchId, LocalDateTime uploadedAt, String transcript) {
+    public VideoDTO(Long id, String title, String url, String teacherName, Long batchId, String batchName, String batchCode, LocalDateTime uploadedAt, String transcript) {
         this.id = id;
         this.title = title;
         this.url = url;
         this.teacherName = teacherName;
         this.batchId = batchId;
+        this.batchName = batchName;
+        this.batchCode = batchCode;
         this.uploadedAt = uploadedAt;
         this.transcript = transcript;
     }
@@ -37,6 +41,12 @@ public class VideoDTO {
 
     public Long getBatchId() { return batchId; }
     public void setBatchId(Long batchId) { this.batchId = batchId; }
+
+    public String getBatchName() { return batchName; }
+    public void setBatchName(String batchName) { this.batchName = batchName; }
+
+    public String getBatchCode() { return batchCode; }
+    public void setBatchCode(String batchCode) { this.batchCode = batchCode; }
 
     public LocalDateTime getUploadedAt() { return uploadedAt; }
     public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }

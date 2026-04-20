@@ -10,8 +10,14 @@ import com.remoteclassroom.backend.model.Batch;
 import com.remoteclassroom.backend.model.User;
 import com.remoteclassroom.backend.model.Video;
 import com.remoteclassroom.backend.repository.BatchRepository;
+import com.remoteclassroom.backend.repository.EnrollmentRepository;
 import com.remoteclassroom.backend.repository.UserRepository;
 import com.remoteclassroom.backend.repository.VideoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class VideoService {
@@ -26,6 +32,9 @@ public class VideoService {
 
     @Autowired
     private BatchRepository batchRepository;
+
+    @Autowired
+    private EnrollmentRepository enrollmentRepository;
 
     @Autowired
     private TranscriptionService transcriptionService;
@@ -84,6 +93,34 @@ public class VideoService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public List<com.remoteclassroom.backend.dto.VideoDTO> getVideosInEnrolledBatches(String studentEmail) {
+        User student = userRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new RuntimeException("Student not found"));
+        
+        List<Batch> batches = enrollmentRepository.findByStudent(student).stream()
+                .map(com.remoteclassroom.backend.model.Enrollment::getBatch)
+                .collect(java.util.stream.Collectors.toList());
+        
+        if (batches.isEmpty()) return List.of();
+        
+        return videoRepository.findByBatchIn(batches).stream()
+                .map(this::mapToDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public List<com.remoteclassroom.backend.dto.VideoDTO> getVideosInTeacherBatches(String teacherEmail) {
+        User teacher = userRepository.findByEmail(teacherEmail)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+        
+        List<Batch> batches = batchRepository.findByTeacher(teacher);
+        
+        if (batches.isEmpty()) return List.of();
+        
+        return videoRepository.findByBatchIn(batches).stream()
+                .map(this::mapToDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     private com.remoteclassroom.backend.dto.VideoDTO mapToDTO(Video v) {
         return new com.remoteclassroom.backend.dto.VideoDTO(
                 v.getId(),
@@ -91,6 +128,8 @@ public class VideoService {
                 s3Service.generatePlaybackUrl(v.getUrl()),
                 v.getTeacher() != null ? v.getTeacher().getName() : "Unknown",
                 v.getBatch() != null ? v.getBatch().getId() : null,
+                v.getBatch() != null ? v.getBatch().getName() : "General",
+                v.getBatch() != null ? v.getBatch().getBatchCode() : "",
                 v.getUploadedAt(),
                 v.getTranscript()
         );

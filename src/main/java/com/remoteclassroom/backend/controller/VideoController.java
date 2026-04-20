@@ -60,6 +60,13 @@ public class VideoController {
     @GetMapping("/my")
     public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getMyVideos(Authentication authentication) {
         String email = authentication.getName();
-        return ResponseEntity.ok(videoService.getMyVideos(email));
+        boolean isTeacher = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+        
+        if (isTeacher) {
+            return ResponseEntity.ok(videoService.getVideosInTeacherBatches(email));
+        } else {
+            return ResponseEntity.ok(videoService.getVideosInEnrolledBatches(email));
+        }
     }
 }
