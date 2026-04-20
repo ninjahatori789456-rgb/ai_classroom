@@ -16,6 +16,8 @@ import com.remoteclassroom.backend.repository.BatchRepository;
 import com.remoteclassroom.backend.repository.ClassParticipantRepository;
 import com.remoteclassroom.backend.repository.LiveClassRepository;
 import com.remoteclassroom.backend.repository.UserRepository;
+import io.agora.media.RtcTokenBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import com.remoteclassroom.backend.model.Attendance;
 
 @Service
@@ -35,6 +37,12 @@ public class LiveClassService {
 
     @Autowired
     private AttendanceRepository attendanceRepository;
+
+    @Value("${AGORA_APP_ID}")
+    private String appId;
+
+    @Value("${AGORA_APP_CERTIFICATE}")
+    private String appCertificate;
 
     public com.remoteclassroom.backend.dto.LiveClassDTO createClass(String title, String teacherEmail, Long batchId) {
 
@@ -187,5 +195,28 @@ public class LiveClassService {
                         a.getLeaveTime()
                 ))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    public String getAgoraToken(Long classId, int uid) {
+        LiveClass lc = liveClassRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+
+        if (appId == null || appId.isEmpty() || appCertificate == null || appCertificate.isEmpty()) {
+            throw new RuntimeException("Agora credentials not configured in backend");
+        }
+
+        String channelName = lc.getMeetingId(); // Using UUID as channel name
+        int expirationTimeInSeconds = 3600;
+        int timestamp = (int) (System.currentTimeMillis() / 1000 + expirationTimeInSeconds);
+
+        RtcTokenBuilder tokenBuilder = new RtcTokenBuilder();
+        return tokenBuilder.buildTokenWithUid(
+                appId,
+                appCertificate,
+                channelName,
+                uid,
+                RtcTokenBuilder.Role.Role_Publisher,
+                timestamp
+        );
     }
 }

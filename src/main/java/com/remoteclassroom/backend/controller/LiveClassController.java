@@ -62,4 +62,10 @@ public class LiveClassController {
     public ResponseEntity<?> getAttendance(@PathVariable Long classId, Authentication auth) {
         return ResponseEntity.ok(liveClassService.getAttendance(classId, auth.getName()));
     }
+
+    @GetMapping("/token/{classId}")
+    public ResponseEntity<?> getToken(@PathVariable Long classId, @RequestParam(defaultValue = "0") int uid) {
+        String token = liveClassService.getAgoraToken(classId, uid);
+        return ResponseEntity.ok(Map.of("token", token));
+    }
 }
