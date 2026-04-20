@@ -53,30 +53,10 @@ public class GlobalExceptionHandler {
     // ⚠️ RUNTIME ERRORS — e.g. "User not found", "Invalid password"
     // =============================================
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
-        String message = ex.getMessage();
-
-        // Auth-related runtime errors → 401
-        if (message != null && (message.contains("User not found") || message.contains("Invalid password"))) {
-            Map<String, Object> body = new HashMap<>();
-            body.put("success", false);
-            body.put("error", "Invalid email or password");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
-        }
-
-        // Not found patterns → 404
-        if (message != null && message.toLowerCase().contains("not found")) {
-            Map<String, Object> body = new HashMap<>();
-            body.put("success", false);
-            body.put("error", message);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
-        }
-
-        // All other runtime exceptions → 400 Bad Request
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("error", message != null ? message : "An unexpected error occurred");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
+        String message = ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred";
+        System.err.println("❌ Runtime Exception: " + message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
     }
 
     // =============================================

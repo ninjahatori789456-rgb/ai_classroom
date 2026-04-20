@@ -18,6 +18,7 @@ public class LiveClassController {
 
     @PostMapping("/create")
     public ResponseEntity<com.remoteclassroom.backend.dto.LiveClassDTO> createClass(@jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.LiveClassRequest request, Authentication authentication) {
+        System.out.println("📡 Received Live Class Create Request - Title: " + request.getTitle() + ", BatchId: " + request.getBatchId());
         String title = request.getTitle();
         Long batchId = request.getBatchId();
         String teacherEmail = authentication.getName();
