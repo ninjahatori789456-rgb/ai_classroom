@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 @Service
 public class BatchService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(BatchService.class);
+
     @Autowired
     private BatchRepository batchRepository;
 
@@ -26,18 +28,19 @@ public class BatchService {
     private UserRepository userRepository;
 
     public com.remoteclassroom.backend.dto.BatchDTO createBatch(String name, String subject, String teacherEmail) {
+        log.info("Creating batch: {} for teacher: {}", name, teacherEmail);
         User teacher = userRepository.findByEmail(teacherEmail)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
         String batchCode = generateBatchCode(subject);
         Batch batch = new Batch(name, subject, batchCode, teacher);
         Batch saved = batchRepository.save(batch);
-        return new com.remoteclassroom.backend.dto.BatchDTO(
-            saved.getId(), saved.getName(), saved.getSubject(), saved.getBatchCode(), saved.getTeacher().getName()
-        );
+        log.info("Batch created with ID: {} and code: {}", saved.getId(), saved.getBatchCode());
+        return mapToDTO(saved);
     }
 
     public com.remoteclassroom.backend.dto.BatchDTO joinBatch(String batchCode, String studentEmail) {
+        log.info("Student {} joining batch with code: {}", studentEmail, batchCode);
         if (batchCode == null) {
             throw new RuntimeException("Batch code is missing in request");
         }
@@ -56,10 +59,9 @@ public class BatchService {
 
         Enrollment enrollment = new Enrollment(student, batch);
         enrollmentRepository.save(enrollment);
+        log.info("Student enrolled successfully");
         
-        return new com.remoteclassroom.backend.dto.BatchDTO(
-            batch.getId(), batch.getName(), batch.getSubject(), batch.getBatchCode(), batch.getTeacher().getName()
-        );
+        return mapToDTO(batch);
     }
 
     public List<com.remoteclassroom.backend.dto.BatchDTO> getStudentBatches(String studentEmail) {
@@ -68,12 +70,7 @@ public class BatchService {
 
         return enrollmentRepository.findByStudent(student)
                 .stream()
-                .map(enrollment -> {
-                    Batch b = enrollment.getBatch();
-                    return new com.remoteclassroom.backend.dto.BatchDTO(
-                        b.getId(), b.getName(), b.getSubject(), b.getBatchCode(), b.getTeacher().getName()
-                    );
-                })
+                .map(enrollment -> mapToDTO(enrollment.getBatch()))
                 .collect(Collectors.toList());
     }
 
@@ -83,15 +80,24 @@ public class BatchService {
 
         return batchRepository.findByTeacher(teacher)
                 .stream()
-                .map(b -> new com.remoteclassroom.backend.dto.BatchDTO(
-                    b.getId(), b.getName(), b.getSubject(), b.getBatchCode(), b.getTeacher().getName()
-                ))
+                .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
     public Batch getBatchById(Long batchId) {
         return batchRepository.findById(batchId)
                 .orElseThrow(() -> new RuntimeException("Batch not found"));
+    }
+
+    private com.remoteclassroom.backend.dto.BatchDTO mapToDTO(Batch b) {
+        if (b == null) return null;
+        return new com.remoteclassroom.backend.dto.BatchDTO(
+            b.getId(), 
+            b.getName(), 
+            b.getSubject(), 
+            b.getBatchCode(), 
+            b.getTeacher() != null ? b.getTeacher().getName() : "Unknown"
+        );
     }
 
     private String generateBatchCode(String subject) {

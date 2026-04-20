@@ -16,6 +16,8 @@ import com.remoteclassroom.backend.repository.VideoRepository;
 @Service
 public class VideoService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VideoService.class);
+
     @Autowired
     private VideoRepository videoRepository;
 
@@ -32,6 +34,7 @@ public class VideoService {
     private S3Service s3Service;
 
     public com.remoteclassroom.backend.dto.VideoDTO saveVideo(String title, String url, String email, Long batchId, String transcript) {
+        log.info("Saving video: {} for batch: {} by teacher: {}", title, batchId, email);
 
         User teacher = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -48,31 +51,25 @@ public class VideoService {
         video.setUploadedAt(LocalDateTime.now());
 
         Video savedVideo = videoRepository.save(video);
+        log.info("Video saved with ID: {}", savedVideo.getId());
 
         // 🔥 Trigger AI Transcription in background
         transcriptionService.transcribeVideoAsync(savedVideo);
 
-        return new com.remoteclassroom.backend.dto.VideoDTO(
-                savedVideo.getId(), savedVideo.getTitle(), s3Service.generatePlaybackUrl(savedVideo.getUrl()),
-                teacher.getName(), batch.getId(), savedVideo.getUploadedAt(), savedVideo.getTranscript()
-        );
+        return mapToDTO(savedVideo);
     }
 
     public List<com.remoteclassroom.backend.dto.VideoDTO> getVideosByBatch(Long batchId) {
         return videoRepository.findByBatchId(batchId).stream()
-                .map(v -> new com.remoteclassroom.backend.dto.VideoDTO(
-                        v.getId(), v.getTitle(), s3Service.generatePlaybackUrl(v.getUrl()),
-                        v.getTeacher().getName(), v.getBatch().getId(), v.getUploadedAt(), v.getTranscript()
-                ))
+                .filter(v -> v.getBatch() != null) // Filter out bad data
+                .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
     }
 
     public List<com.remoteclassroom.backend.dto.VideoDTO> getAllVideosDTO() {
         return videoRepository.findAll().stream()
-                .map(v -> new com.remoteclassroom.backend.dto.VideoDTO(
-                        v.getId(), v.getTitle(), s3Service.generatePlaybackUrl(v.getUrl()),
-                        v.getTeacher().getName(), v.getBatch().getId(), v.getUploadedAt(), v.getTranscript()
-                ))
+                .filter(v -> v.getBatch() != null) // Filter out bad data
+                .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
     }
 
@@ -82,11 +79,21 @@ public class VideoService {
 
     public List<com.remoteclassroom.backend.dto.VideoDTO> getMyVideos(String email) {
         return videoRepository.findByTeacher_Email(email).stream()
-                .map(v -> new com.remoteclassroom.backend.dto.VideoDTO(
-                        v.getId(), v.getTitle(), s3Service.generatePlaybackUrl(v.getUrl()),
-                        v.getTeacher().getName(), v.getBatch().getId(), v.getUploadedAt(), v.getTranscript()
-                ))
+                .filter(v -> v.getBatch() != null) // Filter out bad data
+                .map(this::mapToDTO)
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.remoteclassroom.backend.dto.VideoDTO mapToDTO(Video v) {
+        return new com.remoteclassroom.backend.dto.VideoDTO(
+                v.getId(),
+                v.getTitle(),
+                s3Service.generatePlaybackUrl(v.getUrl()),
+                v.getTeacher() != null ? v.getTeacher().getName() : "Unknown",
+                v.getBatch() != null ? v.getBatch().getId() : null,
+                v.getUploadedAt(),
+                v.getTranscript()
+        );
     }
 
     public Video getById(Long id) {

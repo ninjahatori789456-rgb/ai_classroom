@@ -37,16 +37,12 @@ public class VideoController {
     }
 
     @PostMapping("/save")
-    public ResponseEntity<com.remoteclassroom.backend.dto.VideoDTO> saveVideo(@RequestBody com.remoteclassroom.backend.dto.VideoSaveRequest request, Authentication authentication) {
+    public ResponseEntity<com.remoteclassroom.backend.dto.VideoDTO> saveVideo(@jakarta.validation.Valid @RequestBody com.remoteclassroom.backend.dto.VideoSaveRequest request, Authentication authentication) {
         String title = request.getTitle();
         String videoUrl = request.getVideoUrl();
         Long batchId = request.getBatchId();
         String transcript = request.getTranscript();
         String email = authentication.getName();
-
-        if (batchId == null) {
-            throw new RuntimeException("batchId is required");
-        }
 
         return ResponseEntity.ok(videoService.saveVideo(title, videoUrl, email, batchId, transcript));
     }

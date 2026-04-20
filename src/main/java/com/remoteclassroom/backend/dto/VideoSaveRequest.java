@@ -1,9 +1,19 @@
 package com.remoteclassroom.backend.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class VideoSaveRequest {
+    
+    @NotBlank(message = "Title is required")
     private String title;
+    
+    @NotBlank(message = "Video URL is required")
     private String videoUrl;
+    
+    @NotNull(message = "Batch ID is required")
     private Long batchId;
+    
     private String transcript;
 
     // Getters and Setters
