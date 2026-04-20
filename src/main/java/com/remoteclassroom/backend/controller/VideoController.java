@@ -61,7 +61,7 @@ public class VideoController {
     public ResponseEntity<List<com.remoteclassroom.backend.dto.VideoDTO>> getMyVideos(Authentication authentication) {
         String email = authentication.getName();
         boolean isTeacher = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_TEACHER"));
+                .anyMatch(a -> a.getAuthority().contains("TEACHER"));
         
         if (isTeacher) {
             return ResponseEntity.ok(videoService.getVideosInTeacherBatches(email));

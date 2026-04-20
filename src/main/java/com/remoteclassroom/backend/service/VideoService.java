@@ -19,7 +19,10 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class VideoService {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(VideoService.class);

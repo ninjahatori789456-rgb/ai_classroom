@@ -2,6 +2,8 @@ package com.remoteclassroom.backend.dto;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 public class VideoDTO {
     private Long id;
     private String title;
@@ -10,6 +12,7 @@ public class VideoDTO {
     private Long batchId;
     private String batchName;
     private String batchCode;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime uploadedAt;
     private String transcript;
 
