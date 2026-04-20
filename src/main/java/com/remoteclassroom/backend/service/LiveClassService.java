@@ -11,10 +11,12 @@ import com.remoteclassroom.backend.model.Batch;
 import com.remoteclassroom.backend.model.ClassParticipant;
 import com.remoteclassroom.backend.model.LiveClass;
 import com.remoteclassroom.backend.model.User;
+import com.remoteclassroom.backend.repository.AttendanceRepository;
 import com.remoteclassroom.backend.repository.BatchRepository;
 import com.remoteclassroom.backend.repository.ClassParticipantRepository;
 import com.remoteclassroom.backend.repository.LiveClassRepository;
 import com.remoteclassroom.backend.repository.UserRepository;
+import com.remoteclassroom.backend.model.Attendance;
 
 @Service
 public class LiveClassService {
@@ -30,6 +32,9 @@ public class LiveClassService {
 
     @Autowired
     private BatchRepository batchRepository;
+
+    @Autowired
+    private AttendanceRepository attendanceRepository;
 
     public com.remoteclassroom.backend.dto.LiveClassDTO createClass(String title, String teacherEmail, Long batchId) {
 
@@ -72,6 +77,23 @@ public class LiveClassService {
 
         lc.setLive(false);
         LiveClass saved = liveClassRepository.save(lc);
+
+        // 🚀 AUTO-LEAVE: Update all students who haven't left yet
+        List<Attendance> activeAttendance = attendanceRepository.findByLiveClass(lc);
+        for (Attendance a : activeAttendance) {
+            if (a.getLeaveTime() == null) {
+                a.setLeaveTime(LocalDateTime.now());
+                
+                // Calculate presence on auto-leave too
+                java.time.Duration duration = java.time.Duration.between(a.getJoinTime(), a.getLeaveTime());
+                if (duration.toMinutes() >= 5) {
+                    a.setPresent(true);
+                }
+                
+                attendanceRepository.save(a);
+            }
+        }
+
         return mapToDTO(saved);
     }
 
@@ -91,43 +113,79 @@ public class LiveClassService {
         );
     }
 
-    // Existing methods (can be kept or updated as needed)
-    public ClassParticipant joinClass(Long classId, String studentEmail) {
-        LiveClass lc = liveClassRepository.findById(classId)
+    public void joinClass(Long classId, String email) {
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!student.getRole().equals("ROLE_STUDENT") && !student.getRole().equals("STUDENT")) {
+            throw new RuntimeException("Only students can join as attendees");
+        }
+
+        LiveClass liveClass = liveClassRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
 
-        if (!lc.isLive()) {
+        if (!liveClass.isLive()) {
             throw new RuntimeException("Class is not live");
         }
 
-        User student = userRepository.findByEmail(studentEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        boolean alreadyJoined = participantRepository.existsByLiveClassIdAndStudentEmail(classId, studentEmail);
-        if (alreadyJoined) {
-            return participantRepository.findByLiveClassIdAndStudentEmail(classId, studentEmail).get();
+        // Handle re-join logic
+        Attendance existing = attendanceRepository.findByLiveClassAndStudent(liveClass, student).orElse(null);
+        if (existing != null) {
+            existing.setJoinTime(LocalDateTime.now());
+            existing.setLeaveTime(null);
+            attendanceRepository.save(existing);
+            return;
         }
 
-        ClassParticipant cp = new ClassParticipant();
-        cp.setLiveClass(lc);
-        cp.setStudent(student);
-        cp.setJoinedAt(LocalDateTime.now());
+        Attendance attendance = new Attendance();
+        attendance.setLiveClass(liveClass);
+        attendance.setStudent(student);
+        attendance.setJoinTime(LocalDateTime.now());
+        attendance.setPresent(false); // Default to false until duration met
 
-        return participantRepository.save(cp);
+        attendanceRepository.save(attendance);
     }
 
-    public ClassParticipant leaveClass(Long classId, String studentEmail) {
-        ClassParticipant cp = participantRepository
-                .findByLiveClassIdAndStudentEmail(classId, studentEmail)
-                .orElseThrow(() -> new RuntimeException("Not joined"));
+    public void leaveClass(Long classId, String email) {
+        User student = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (cp.getLeftAt() != null) {
-            return cp;
+        LiveClass liveClass = liveClassRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+
+        Attendance attendance = attendanceRepository
+                .findByLiveClassAndStudent(liveClass, student)
+                .orElse(null);
+
+        if (attendance == null) return; // Silently ignore if no join record exists
+
+        attendance.setLeaveTime(LocalDateTime.now());
+        
+        // 🎯 Duration Check: Mark present only if stayed >= 5 minutes
+        java.time.Duration duration = java.time.Duration.between(attendance.getJoinTime(), attendance.getLeaveTime());
+        if (duration.toMinutes() >= 5) {
+            attendance.setPresent(true);
         }
 
-        cp.setLeftAt(LocalDateTime.now());
-        cp.calculateDuration();
+        attendanceRepository.save(attendance);
+    }
 
-        return participantRepository.save(cp);
+    public List<com.remoteclassroom.backend.dto.AttendanceDTO> getAttendance(Long classId, String teacherEmail) {
+        LiveClass liveClass = liveClassRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+
+        // 🔒 SECURITY CHECK: Only the teacher of this batch can see attendance
+        if (!liveClass.getTeacher().getEmail().equals(teacherEmail)) {
+            throw new RuntimeException("Unauthorized: Only the assigned teacher can view attendance.");
+        }
+
+        return attendanceRepository.findByLiveClass(liveClass).stream()
+                .map(a -> new com.remoteclassroom.backend.dto.AttendanceDTO(
+                        a.getStudent() != null ? a.getStudent().getName() : "Unknown",
+                        a.getStudent() != null ? a.getStudent().getEmail() : "Unknown",
+                        a.getJoinTime(),
+                        a.getLeaveTime()
+                ))
+                .collect(java.util.stream.Collectors.toList());
     }
 }

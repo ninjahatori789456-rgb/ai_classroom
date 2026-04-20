@@ -45,4 +45,21 @@ public class LiveClassController {
         }
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/join/{classId}")
+    public ResponseEntity<?> joinClass(@PathVariable Long classId, Authentication auth) {
+        liveClassService.joinClass(classId, auth.getName());
+        return ResponseEntity.ok(Map.of("message", "Joined successfully"));
+    }
+
+    @PostMapping("/leave/{classId}")
+    public ResponseEntity<?> leaveClass(@PathVariable Long classId, Authentication auth) {
+        liveClassService.leaveClass(classId, auth.getName());
+        return ResponseEntity.ok(Map.of("message", "Left successfully"));
+    }
+
+    @GetMapping("/attendance/{classId}")
+    public ResponseEntity<?> getAttendance(@PathVariable Long classId, Authentication auth) {
+        return ResponseEntity.ok(liveClassService.getAttendance(classId, auth.getName()));
+    }
 }
