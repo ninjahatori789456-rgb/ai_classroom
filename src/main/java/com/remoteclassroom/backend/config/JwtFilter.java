@@ -11,10 +11,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
@@ -30,38 +28,34 @@ public class JwtFilter extends OncePerRequestFilter {
                                    FilterChain filterChain)
             throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
-
-        if (header == null || !header.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = header.substring(7);
-
         try {
-            if (jwtUtil.validateToken(token)) {
-                String email = jwtUtil.extractEmail(token);
-                String role = jwtUtil.extractRole(token);
+            String header = request.getHeader("Authorization");
 
-                if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (header != null && header.startsWith("Bearer ")) {
+                String token = header.substring(7);
+
+                if (jwtUtil.validateToken(token)) {
+                    String email = jwtUtil.extractEmail(token);
+                    String role = jwtUtil.extractRole(token);
+
                     String springRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(springRole);
 
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    List.of(authority)
+                                    List.of(new SimpleGrantedAuthority(springRole))
                             );
 
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                    log.debug("Authenticated user: {}", email);
+
+                    log.info("JWT OK: {}", email);
                 }
             }
+
         } catch (Exception e) {
-            log.error("Authentication failed: {}", e.getMessage());
+            log.error("JWT Filter error: {}", e.getMessage());
             SecurityContextHolder.clearContext();
         }
 

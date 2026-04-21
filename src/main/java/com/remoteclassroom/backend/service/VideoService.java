@@ -133,7 +133,7 @@ public class VideoService {
                 v.getBatch() != null ? v.getBatch().getName() : "General",
                 v.getBatch() != null ? v.getBatch().getBatchCode() : "",
                 v.getUploadedAt(),
-                v.getTranscript()
+                v.getTranscript() != null ? v.getTranscript() : ""
         );
     }
 

@@ -4,23 +4,13 @@ import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "quiz", indexes = {
-    @jakarta.persistence.Index(name = "idx_quiz_video_id", columnList = "video_id"),
-    @jakarta.persistence.Index(name = "idx_quiz_batch_id", columnList = "batch_id"),
-    @jakarta.persistence.Index(name = "idx_quiz_created_at", columnList = "createdAt")
+        @Index(name = "idx_quiz_video_id", columnList = "video_id"),
+        @Index(name = "idx_quiz_batch_id", columnList = "batch_id"),
+        @Index(name = "idx_quiz_created_at", columnList = "createdAt")
 })
 public class Quiz {
 
@@ -44,6 +34,7 @@ public class Quiz {
 
     private String difficulty;
 
+    // ✅ FIXED LOB ISSUE
     @Column(columnDefinition = "LONGTEXT")
     private String questionsJson;
 
@@ -62,22 +53,16 @@ public class Quiz {
     public int getTotalQuestions() { return totalQuestions; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
-    // SETTERS
-    public void setVideo(Video video) { this.video = video; }
     public Video getVideo() { return video; }
-
-    public void setTeacher(User teacher) { this.teacher = teacher; }
     public User getTeacher() { return teacher; }
-
-    public void setBatch(Batch batch) { this.batch = batch; }
     public Batch getBatch() { return batch; }
 
+    // SETTERS
+    public void setVideo(Video video) { this.video = video; }
+    public void setTeacher(User teacher) { this.teacher = teacher; }
+    public void setBatch(Batch batch) { this.batch = batch; }
     public void setDifficulty(String difficulty) { this.difficulty = difficulty; }
     public void setQuestionsJson(String questionsJson) { this.questionsJson = questionsJson; }
     public void setTotalQuestions(int totalQuestions) { this.totalQuestions = totalQuestions; }
-
-    // ✅ THIS WAS MISSING
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
