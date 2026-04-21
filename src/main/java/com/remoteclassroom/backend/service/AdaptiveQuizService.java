@@ -53,6 +53,8 @@ public class AdaptiveQuizService {
         quiz.setQuestionsJson(questionsJson);
         quiz.setCreatedAt(LocalDateTime.now());
         quiz.setVideo(video);
+        quiz.setBatch(video.getBatch());
+quiz.setTeacher(video.getTeacher());
 
         return quizRepository.save(quiz);
     }

@@ -17,8 +17,9 @@ public class QuizController {
     private QuizService quizService;
 
     @PostMapping("/generate")
-    public ResponseEntity<com.remoteclassroom.backend.dto.QuizDTO> generateQuiz(@RequestBody Map<String, Long> request) {
-        Long videoId = request.get("videoId");
+    public ResponseEntity<com.remoteclassroom.backend.dto.QuizDTO> generateQuiz(@RequestBody Map<String, Object> request) {
+        Number videoIdNum = (Number) request.get("videoId");
+        Long videoId = videoIdNum != null ? videoIdNum.longValue() : null;
         return ResponseEntity.ok(quizService.generateAndSaveQuiz(videoId));
     }
 

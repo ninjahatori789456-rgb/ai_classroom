@@ -64,7 +64,7 @@ public class QuizService {
     }
 
     public Optional<com.remoteclassroom.backend.dto.QuizDTO> getQuizByVideo(Long videoId) {
-        return quizRepository.findByVideoId(videoId)
+        return quizRepository.findTopByVideo_IdOrderByCreatedAtDesc(videoId)
                 .map(q -> new com.remoteclassroom.backend.dto.QuizDTO(
                         q.getId(), q.getVideo().getId(), q.getBatch().getId(),
                         q.getDifficulty(), parseJson(q.getQuestionsJson()),
