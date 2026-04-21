@@ -1,6 +1,8 @@
 package com.remoteclassroom.backend.service;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.remoteclassroom.backend.dto.QuizDTO;
 import com.remoteclassroom.backend.model.Quiz;
 import com.remoteclassroom.backend.model.Video;
 import com.remoteclassroom.backend.repository.QuizRepository;
@@ -26,6 +30,45 @@ public class QuizService {
 
     @Autowired
     private AIService aiService;
+
+    public QuizDTO generateAndSaveQuiz(Long videoId) {
+        Quiz quiz = getOrGenerateQuiz(videoId, null);
+        return mapToDTO(quiz);
+    }
+
+    public Optional<QuizDTO> getQuizByVideo(Long videoId) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new RuntimeException("Video not found"));
+        List<Quiz> quizzes = quizRepository.findByVideoOrderByIdDesc(video);
+        if (quizzes != null && !quizzes.isEmpty()) {
+            return Optional.of(mapToDTO(quizzes.get(0)));
+        }
+        return Optional.empty();
+    }
+
+    public List<QuizDTO> getQuizzesByBatch(Long batchId) {
+        return quizRepository.findByBatch_Id(batchId).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    private QuizDTO mapToDTO(Quiz quiz) {
+        Object questions = new java.util.ArrayList<>();
+        try {
+            questions = new ObjectMapper().readValue(quiz.getQuestionsJson(), Object.class);
+        } catch (Exception e) {
+            log.error("Failed to parse quiz questions JSON for quiz ID: {}", quiz.getId(), e);
+        }
+        return new QuizDTO(
+                quiz.getId(),
+                quiz.getVideo().getId(),
+                quiz.getBatch() != null ? quiz.getBatch().getId() : null,
+                quiz.getDifficulty(),
+                questions,
+                quiz.getTotalQuestions(),
+                quiz.getCreatedAt()
+        );
+    }
 
     @Transactional
     public Quiz getOrGenerateQuiz(Long videoId, String studentEmail) {
@@ -81,6 +124,7 @@ public class QuizService {
             Quiz quiz = new Quiz();
             quiz.setVideo(video);
             quiz.setTeacher(video.getTeacher());
+            quiz.setBatch(video.getBatch());
             quiz.setQuestionsJson(questionsJson);
             quiz.setDifficulty("MEDIUM");
             quiz.setTotalQuestions(10);

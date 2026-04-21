@@ -10,4 +10,6 @@ import com.remoteclassroom.backend.model.Video;
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
     List<Quiz> findByVideoOrderByIdDesc(Video video);
+    
+    List<Quiz> findByBatch_Id(Long batchId);
 }
