@@ -38,6 +38,20 @@ public class QuizController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/batch/{batchId}")
+    public ResponseEntity<java.util.List<com.remoteclassroom.backend.dto.QuizDTO>> getQuizzesByBatch(@PathVariable Long batchId, Authentication authentication) {
+        boolean isStudent = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
+
+        java.util.List<com.remoteclassroom.backend.dto.QuizDTO> quizzes = quizService.getQuizzesByBatch(batchId);
+
+        if (isStudent) {
+            quizzes.forEach(q -> q.setQuestions(scrubAnswers(q.getQuestions())));
+        }
+
+        return ResponseEntity.ok(quizzes);
+    }
+
     private Object scrubAnswers(Object questions) {
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();

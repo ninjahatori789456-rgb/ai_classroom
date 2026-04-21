@@ -8,6 +8,6 @@ import java.util.Optional;
 
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
     Quiz findByVideo(Video video);
-    Optional<Quiz> findTopByVideo_IdOrderByCreatedAtDesc(Long videoId);
+    List<Quiz> findByVideo_IdOrderByCreatedAtDesc(Long videoId);
     List<Quiz> findByBatchId(Long batchId);
 }

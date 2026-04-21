@@ -14,7 +14,9 @@ public class AIController {
     private AIService aiService;
 
     @PostMapping("/doubt")
-    public String solveDoubt(@RequestBody DoubtRequest request) {
+    public String solveDoubt(@RequestBody DoubtRequest request, org.springframework.security.core.Authentication auth) {
+        System.out.println("🔥 DOUBT HIT: " + request.getQuestion());
+        System.out.println("👤 USER: " + (auth != null ? auth.getName() : "NO AUTH"));
         return aiService.getAnswer(
                 request.getQuestion(),
                 request.getLanguage());

@@ -22,12 +22,27 @@ public class AIService {
     private final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    public AIService() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10000);
+        factory.setReadTimeout(20000);
+        this.restTemplate = new RestTemplate(factory);
+    }
 
     // =========================
     // 📘 EXPLANATION API (DOUBTS)
     // =========================
     public String getAnswer(String question, String language) {
+
+        if (apiKey == null || apiKey.trim().isEmpty() || apiKey.contains("YOUR_API_KEY")) {
+            System.err.println("⚠️ GEMINI API KEY IS MISSING OR INVALID!");
+        }
+
+        if (question == null || question.trim().isEmpty()) {
+            return "Please provide a valid doubt question.";
+        }
 
         String prompt = """
 You are an expert, encouraging AI teacher.
@@ -42,15 +57,19 @@ Guidelines for your response:
 
 Question from Student:
 %s
-""".formatted(language, question);
+""".formatted(language != null ? language : "English", question);
 
         try {
             // Because this is natural text, we do NOT run cleanJson! 
             // We want to preserve \n so paragraphs render correctly on the UI.
-            return callGeminiCore(prompt);
+            String response = callGeminiCore(prompt);
+            if (response == null || response.trim().isEmpty() || response.equals("[]")) {
+                return "⚠️ Server busy. Please try again in a few seconds.";
+            }
+            return response;
         } catch (Exception e) {
-            e.printStackTrace();
-            return "I'm sorry, I am experiencing a temporary technical glitch connecting to the central mainframe. Please try asking your doubt again in a moment!";
+            System.err.println("❌ DOUBT API ERROR: " + e.getMessage());
+            return "⚠️ Server busy. Please try again in a few seconds.";
         }
     }
 

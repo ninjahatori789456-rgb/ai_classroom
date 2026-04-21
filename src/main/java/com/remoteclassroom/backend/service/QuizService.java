@@ -64,12 +64,16 @@ public class QuizService {
     }
 
     public Optional<com.remoteclassroom.backend.dto.QuizDTO> getQuizByVideo(Long videoId) {
-        return quizRepository.findTopByVideo_IdOrderByCreatedAtDesc(videoId)
-                .map(q -> new com.remoteclassroom.backend.dto.QuizDTO(
-                        q.getId(), q.getVideo().getId(), q.getBatch().getId(),
-                        q.getDifficulty(), parseJson(q.getQuestionsJson()),
-                        q.getTotalQuestions(), q.getCreatedAt()
-                ));
+        List<Quiz> quizzes = quizRepository.findByVideo_IdOrderByCreatedAtDesc(videoId);
+        if (quizzes.isEmpty()) {
+            return Optional.empty();
+        }
+        Quiz q = quizzes.get(0);
+        return Optional.of(new com.remoteclassroom.backend.dto.QuizDTO(
+                q.getId(), q.getVideo().getId(), q.getBatch().getId(),
+                q.getDifficulty(), parseJson(q.getQuestionsJson()),
+                q.getTotalQuestions(), q.getCreatedAt()
+        ));
     }
 
     public List<com.remoteclassroom.backend.dto.QuizDTO> getQuizzesByBatch(Long batchId) {
