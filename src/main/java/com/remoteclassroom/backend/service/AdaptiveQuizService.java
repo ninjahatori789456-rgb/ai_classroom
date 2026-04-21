@@ -13,6 +13,7 @@ import com.remoteclassroom.backend.repository.QuizRepository;
 import com.remoteclassroom.backend.repository.StudentTopicMasteryRepository;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class AdaptiveQuizService {
 
     @Autowired

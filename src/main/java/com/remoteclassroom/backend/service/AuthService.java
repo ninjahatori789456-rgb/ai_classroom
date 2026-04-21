@@ -11,8 +11,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.HashMap;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class AuthService {
 
     @Autowired
@@ -21,14 +23,16 @@ public class AuthService {
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     // REGISTER
     public User register(RegisterRequest request) {
-
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail().toLowerCase().trim());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole().toUpperCase()); // Store plain (STUDENT/TEACHER)
+        user.setRole(request.getRole().toUpperCase());
         user.setPhoneNumber(request.getPhoneNumber());
 
         return userRepository.save(user);
@@ -36,7 +40,6 @@ public class AuthService {
 
     // LOGIN
     public Map<String, Object> login(LoginRequest request) {
-
         User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -45,10 +48,9 @@ public class AuthService {
         }
 
         String role = user.getRole() != null ? user.getRole() : "STUDENT";
+        String token = jwtUtil.generateToken(user.getEmail(), role);
 
-        String token = JwtUtil.generateToken(user.getEmail(), role);
-
-        Map<String, Object> response = new java.util.HashMap<>();
+        Map<String, Object> response = new HashMap<>();
         response.put("token", token);
         response.put("role", role);
         return response;

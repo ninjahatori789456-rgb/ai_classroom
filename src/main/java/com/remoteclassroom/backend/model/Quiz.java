@@ -17,7 +17,11 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "quiz")
+@Table(name = "quiz", indexes = {
+    @jakarta.persistence.Index(name = "idx_quiz_video_id", columnList = "video_id"),
+    @jakarta.persistence.Index(name = "idx_quiz_batch_id", columnList = "batch_id"),
+    @jakarta.persistence.Index(name = "idx_quiz_created_at", columnList = "createdAt")
+})
 public class Quiz {
 
     @Id
@@ -40,8 +44,7 @@ public class Quiz {
 
     private String difficulty;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String questionsJson;
 
     private int totalQuestions;

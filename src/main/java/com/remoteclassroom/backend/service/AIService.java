@@ -12,8 +12,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class AIService {
 
     @Value("${gemini.api.key}")
@@ -31,13 +33,10 @@ public class AIService {
         this.restTemplate = new RestTemplate(factory);
     }
 
-    // =========================
-    // 📘 EXPLANATION API (DOUBTS)
-    // =========================
     public String getAnswer(String question, String language) {
-
-        if (apiKey == null || apiKey.trim().isEmpty() || apiKey.contains("YOUR_API_KEY")) {
-            System.err.println("⚠️ GEMINI API KEY IS MISSING OR INVALID!");
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            log.error("Gemini API key is missing");
+            return "⚠️ Service temporarily unavailable. Please try again later.";
         }
 
         if (question == null || question.trim().isEmpty()) {
@@ -60,23 +59,18 @@ Question from Student:
 """.formatted(language != null ? language : "English", question);
 
         try {
-            // Because this is natural text, we do NOT run cleanJson! 
-            // We want to preserve \n so paragraphs render correctly on the UI.
-            String response = callGeminiCore(prompt);
-            if (response == null || response.trim().isEmpty() || response.equals("[]")) {
-                return "⚠️ Server busy. Please try again in a few seconds.";
-            }
-            return response;
+            return callGeminiCore(prompt);
         } catch (Exception e) {
-            System.err.println("❌ DOUBT API ERROR: " + e.getMessage());
+            log.error("Doubt API Error after retries: {}", e.getMessage());
             return "⚠️ Server busy. Please try again in a few seconds.";
         }
     }
 
-    // =========================
-    // 🧠 QUIZ GENERATION (UPGRADED)
-    // =========================
     public String generateQuiz(String transcript, String difficulty, String weakTopic) {
+        if (transcript == null || transcript.isBlank()) {
+            log.warn("Empty transcript provided for quiz generation");
+            return getFallbackQuiz("No transcript available to generate quiz.");
+        }
 
         String prompt = """
 You are an expert teacher.
@@ -106,98 +100,99 @@ Lecture:
 %s
 """.formatted(
                 difficulty,
-                (weakTopic != null && !weakTopic.isBlank()
-                        ? "Focus MORE on weak topic: " + weakTopic
-                        : ""),
+                (weakTopic != null && !weakTopic.isBlank() ? "Focus MORE on weak topic: " + weakTopic : ""),
                 transcript
         );
 
         try {
-            // System.out.println("DEBUG: Sending Prompt to Gemini: " + prompt);
             String rawResponse = callGeminiCore(prompt);
-            System.out.println("DEBUG: Raw Gemini Response: " + rawResponse);
             return cleanJson(rawResponse);
         } catch (Exception e) {
-            System.err.println("❌ GEMINI ERROR: " + e.getMessage());
-            e.printStackTrace();
-            return """
-[
-  {
-    "question": "An error occurred generating an adaptive quiz. This is a fallback dummy question.",
-    "options": ["A", "B", "C", "D"],
-    "correctAnswer": "A",
-    "topic": "Fallback"
-  }
-]
-""";
+            log.error("Quiz generation failed after retries: {}", e.getMessage());
+            return getFallbackQuiz("An error occurred generating an adaptive quiz.");
         }
     }
 
-    // =========================
-    // 🔥 CORE GEMINI API CALL
-    // =========================
     private String callGeminiCore(String prompt) throws Exception {
+        int maxRetries = 2;
+        int attempt = 0;
+        Exception lastException = null;
 
-        Map<String, Object> part = new HashMap<>();
-        part.put("text", prompt);
+        while (attempt <= maxRetries) {
+            try {
+                log.info("Calling Gemini API (Attempt {}/{})", attempt + 1, maxRetries + 1);
+                
+                Map<String, Object> part = new HashMap<>();
+                part.put("text", prompt);
 
-        Map<String, Object> content = new HashMap<>();
-        content.put("parts", List.of(part));
+                Map<String, Object> content = new HashMap<>();
+                content.put("parts", List.of(part));
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("contents", List.of(content));
+                Map<String, Object> request = new HashMap<>();
+                request.put("contents", List.of(content));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<Map<String, Object>> entity =
-                new HttpEntity<>(request, headers);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                GEMINI_URL + apiKey,
-                HttpMethod.POST,
-                entity,
-                Map.class
-        );
+                ResponseEntity<Map> response = restTemplate.exchange(
+                        GEMINI_URL + apiKey,
+                        HttpMethod.POST,
+                        entity,
+                        Map.class
+                );
 
-        return extractText(response);
+                String text = extractText(response);
+                if (text == null || text.equals("[]")) {
+                    throw new RuntimeException("Empty response from AI");
+                }
+                return text;
+
+            } catch (Exception e) {
+                attempt++;
+                lastException = e;
+                log.warn("Gemini API attempt {} failed: {}", attempt, e.getMessage());
+                if (attempt <= maxRetries) {
+                    Thread.sleep(1000 * attempt); // Exponential backoff
+                }
+            }
+        }
+        throw lastException;
     }
 
-    // =========================
-    // 🔥 EXTRACT TEXT
-    // =========================
     private String extractText(ResponseEntity<Map> response) {
-
         if (response.getBody() == null) return "[]";
-
-        List<Map<String, Object>> candidates =
-                (List<Map<String, Object>>) response.getBody().get("candidates");
-
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.getBody().get("candidates");
         if (candidates == null || candidates.isEmpty()) return "[]";
-
         Map<String, Object> first = candidates.get(0);
-
-        Map<String, Object> content =
-                (Map<String, Object>) first.get("content");
-
-        List<Map<String, Object>> parts =
-                (List<Map<String, Object>>) content.get("parts");
-
+        Map<String, Object> content = (Map<String, Object>) first.get("content");
+        if (content == null) return "[]";
+        List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
         if (parts == null || parts.isEmpty()) return "[]";
-
         return parts.get(0).get("text").toString();
     }
 
-    // =========================
-    // 🧹 CLEAN JSON (ONLY FOR QUIZZES)
-    // =========================
     private String cleanJson(String text) {
-
+        if (text == null) return "[]";
         return text
                 .replace("```json", "")
                 .replace("```", "")
                 .replace("\n", "")
                 .replace("\r", "")
                 .trim();
+    }
+
+    private String getFallbackQuiz(String message) {
+        return """
+[
+  {
+    "question": "%s",
+    "options": ["A", "B", "C", "D"],
+    "correctAnswer": "A",
+    "topic": "Fallback"
+  }
+]
+""".formatted(message);
     }
 }

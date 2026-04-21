@@ -40,6 +40,7 @@ public class VideoService {
     @Autowired
     private S3Service s3Service;
 
+    @Transactional
     public com.remoteclassroom.backend.dto.VideoDTO saveVideo(String title, String url, String email, Long batchId, String transcript) {
         log.info("Saving video: {} for batch: {} by teacher: {}", title, batchId, email);
 

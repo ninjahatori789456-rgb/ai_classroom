@@ -5,103 +5,59 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
-    // =============================================
-    // 🔐 AUTH ERRORS — Return 401 (not 500)
-    // =============================================
-    @ExceptionHandler({BadCredentialsException.class, UsernameNotFoundException.class})
+    @ExceptionHandler({BadCredentialsException.class})
     public ResponseEntity<Map<String, Object>> handleAuthException(Exception ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("error", "Invalid email or password");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+        return buildResponse("Invalid email or password", HttpStatus.UNAUTHORIZED);
     }
 
-    // =============================================
-    // 🚫 NOT AUTHENTICATED — Return 401
-    // =============================================
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthenticationException(AuthenticationException ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("error", "You must be logged in to access this resource.");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+        return buildResponse("Authentication failed: " + ex.getMessage(), HttpStatus.UNAUTHORIZED);
     }
 
-    // =============================================
-    // 🚫 ACCESS DENIED — Return 403 (not 500!)
-    // =============================================
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("error", "Access denied. You do not have permission to perform this action.");
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+        return buildResponse("Access denied", HttpStatus.FORBIDDEN);
     }
 
-    // =============================================
-    // ⚠️ RUNTIME ERRORS — e.g. "User not found", "Invalid password"
-    // =============================================
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
-        String message = ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred";
-        System.err.println("❌ Runtime Exception: " + message);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
+        log.error("Runtime Exception: ", ex);
+        return buildResponse(ex.getMessage() != null ? ex.getMessage() : "Internal server error", HttpStatus.BAD_REQUEST);
     }
 
-    // =============================================
-    // ✅ VALIDATION ERRORS — Return 400 with JSON
-    // =============================================
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-
-        String errorMessage = ex.getBindingResult()
-                .getFieldErrors()
-                .get(0)
-                .getDefaultMessage();
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-
-        if ("WEAK_PASSWORD".equals(errorMessage)) {
-            body.put("error", "Password too weak. Try: " + generateStrongPassword());
-        } else {
-            body.put("error", "Invalid input. Please check your details.");
-        }
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        String errorMessage = ex.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
+        return buildResponse("Validation error: " + errorMessage, HttpStatus.BAD_REQUEST);
     }
 
-    // =============================================
-    // 🔥 LAST RESORT — Catch any unexpected Exception
-    // =============================================
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("error", "An internal error occurred. Please try again later.");
-        ex.printStackTrace();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        log.error("Unhandled Exception: ", ex);
+        return buildResponse("An internal error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    private String generateStrongPassword() {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%!";
-        Random random = new Random();
-        StringBuilder password = new StringBuilder();
-        for (int i = 0; i < 10; i++) {
-            password.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return password.toString();
+    private ResponseEntity<Map<String, Object>> buildResponse(String message, HttpStatus status) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", message);
+        body.put("status", status.value());
+        return ResponseEntity.status(status).body(body);
     }
 }

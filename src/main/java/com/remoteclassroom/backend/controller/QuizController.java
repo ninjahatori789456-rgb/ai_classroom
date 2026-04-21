@@ -17,14 +17,21 @@ public class QuizController {
     private QuizService quizService;
 
     @PostMapping("/generate")
-    public ResponseEntity<com.remoteclassroom.backend.dto.QuizDTO> generateQuiz(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> generateQuiz(@RequestBody Map<String, Object> request) {
         Number videoIdNum = (Number) request.get("videoId");
-        Long videoId = videoIdNum != null ? videoIdNum.longValue() : null;
+        if (videoIdNum == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "videoId is required", "status", 400));
+        }
+        Long videoId = videoIdNum.longValue();
         return ResponseEntity.ok(quizService.generateAndSaveQuiz(videoId));
     }
 
     @GetMapping("/{videoId}")
-    public ResponseEntity<com.remoteclassroom.backend.dto.QuizDTO> getQuizByVideo(@PathVariable Long videoId, Authentication authentication) {
+    public ResponseEntity<?> getQuizByVideo(@PathVariable Long videoId, Authentication authentication) {
+        if (videoId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "videoId is required", "status", 400));
+        }
+
         boolean isStudent = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_STUDENT"));
 
@@ -35,7 +42,7 @@ public class QuizController {
                     }
                     return ResponseEntity.ok(quiz);
                 })
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.status(404).body((com.remoteclassroom.backend.dto.QuizDTO) null)); // Will be handled by client or simple 404
     }
 
     @GetMapping("/batch/{batchId}")
