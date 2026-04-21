@@ -1,5 +1,7 @@
 package com.remoteclassroom.backend.repository;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.remoteclassroom.backend.model.Quiz;
@@ -7,5 +9,5 @@ import com.remoteclassroom.backend.model.Video;
 
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
-    Quiz findByVideo(Video video);
+    List<Quiz> findByVideoOrderByIdDesc(Video video);
 }

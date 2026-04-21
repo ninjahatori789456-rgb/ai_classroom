@@ -3,18 +3,24 @@ package com.remoteclassroom.backend.service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
 public class AIService {
+
+    private static final Logger log = LoggerFactory.getLogger(AIService.class);
 
     @Value("${gemini.api.key}")
     private String apiKey;
@@ -22,12 +28,32 @@ public class AIService {
     private final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = createRestTemplate();
+
+    private RestTemplate createRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10000); // 10 seconds
+        factory.setReadTimeout(30000);    // 30 seconds
+        return new RestTemplate(factory);
+    }
+
+    private static final String FALLBACK_QUIZ = """
+[
+  {
+    "question": "An error occurred generating an adaptive quiz. This is a fallback dummy question.",
+    "options": ["A", "B", "C", "D"],
+    "correctAnswer": "A",
+    "topic": "Fallback"
+  }
+]
+""";
 
     // =========================
     // 📘 EXPLANATION API (DOUBTS)
     // =========================
     public String getAnswer(String question, String language) {
+        String requestId = UUID.randomUUID().toString();
+        log.info("[{}] Requesting AI explanation for doubt.", requestId);
 
         String prompt = """
 You are an expert, encouraging AI teacher.
@@ -47,9 +73,9 @@ Question from Student:
         try {
             // Because this is natural text, we do NOT run cleanJson! 
             // We want to preserve \n so paragraphs render correctly on the UI.
-            return callGeminiCore(prompt);
+            return callGeminiCoreWithRetry(prompt, 2, requestId);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("[{}] Failed to get AI doubt explanation: {}", requestId, e.getMessage(), e);
             return "I'm sorry, I am experiencing a temporary technical glitch connecting to the central mainframe. Please try asking your doubt again in a moment!";
         }
     }
@@ -58,6 +84,8 @@ Question from Student:
     // 🧠 QUIZ GENERATION (UPGRADED)
     // =========================
     public String generateQuiz(String transcript, String difficulty, String weakTopic) {
+        String requestId = UUID.randomUUID().toString();
+        log.info("[{}] Generating AI Quiz. Difficulty: {}, WeakTopic: {}", requestId, difficulty, weakTopic);
 
         String prompt = """
 You are an expert teacher.
@@ -94,22 +122,36 @@ Lecture:
         );
 
         try {
-            // We run cleanJson here specifically to protect the JSON parser 
-            // without destroying the Doubt API logic above.
-            String rawResponse = callGeminiCore(prompt);
-            return cleanJson(rawResponse);
+            String rawResponse = callGeminiCoreWithRetry(prompt, 2, requestId);
+            String cleaned = cleanJson(rawResponse, requestId);
+            log.info("[{}] Successfully generated AI quiz.", requestId);
+            return cleaned;
         } catch (Exception e) {
-            e.printStackTrace();
-            return """
-[
-  {
-    "question": "An error occurred generating an adaptive quiz. This is a fallback dummy question.",
-    "options": ["A", "B", "C", "D"],
-    "correctAnswer": "A",
-    "topic": "Fallback"
-  }
-]
-""";
+            log.error("[{}] AI Quiz generation failed completely: {}", requestId, e.getMessage(), e);
+            log.warn("[{}] Using FALLBACK quiz.", requestId);
+            return FALLBACK_QUIZ;
+        }
+    }
+
+    // =========================
+    // 🔥 CORE GEMINI API CALL WITH RETRY
+    // =========================
+    private String callGeminiCoreWithRetry(String prompt, int maxRetries, String requestId) throws Exception {
+        int attempt = 0;
+        long backoff = 1000;
+        
+        while (true) {
+            try {
+                return callGeminiCore(prompt);
+            } catch (Exception e) {
+                attempt++;
+                log.error("[{}] Gemini API call failed (attempt {}/{}). Reason: {}", requestId, attempt, maxRetries + 1, e.getMessage());
+                if (attempt > maxRetries) {
+                    throw e;
+                }
+                Thread.sleep(backoff);
+                backoff *= 2; // exponential backoff
+            }
         }
     }
 
@@ -171,13 +213,24 @@ Lecture:
     // =========================
     // 🧹 CLEAN JSON (ONLY FOR QUIZZES)
     // =========================
-    private String cleanJson(String text) {
-
-        return text
-                .replace("```json", "")
-                .replace("```", "")
-                .replace("\n", "")
-                .replace("\r", "")
-                .trim();
+    private String cleanJson(String text, String requestId) {
+        if (text == null) {
+            log.warn("[{}] Response text is null. Using FALLBACK quiz.", requestId);
+            return FALLBACK_QUIZ;
+        }
+        
+        try {
+            int startIndex = text.indexOf('[');
+            int endIndex = text.lastIndexOf(']');
+            
+            if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                return text.substring(startIndex, endIndex + 1);
+            }
+            log.warn("[{}] Invalid JSON format from AI (missing brackets). Using FALLBACK quiz.", requestId);
+            return FALLBACK_QUIZ;
+        } catch (Exception e) {
+            log.error("[{}] Failed to clean JSON: {}. Using FALLBACK quiz.", requestId, e.getMessage());
+            return FALLBACK_QUIZ;
+        }
     }
 }
