@@ -24,53 +24,56 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .csrf(csrf -> csrf.disable())
 
-            .formLogin(form -> form.disable())
-            .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
 
-            .authorizeHttpRequests(auth -> auth
-                // ✅ Auth routes — always public
-                .requestMatchers("/api/auth/**").permitAll()
+                .authorizeHttpRequests(auth -> auth
+                        // ✅ Auth routes — always public
+                        .requestMatchers("/api/auth/**").permitAll()
 
-                // ✅ Transcription — public
-                .requestMatchers("/api/transcribe/**").permitAll()
+                        // ✅ Transcription — public
+                        .requestMatchers("/api/transcribe/**").permitAll()
 
-                // ✅ Error page — public
-                .requestMatchers("/error").permitAll()
+                        // ✅ Error page — public
+                        .requestMatchers("/error").permitAll()
 
-                // ✅ Bug Fix #2: Video listing — public (no login required)
-                .requestMatchers(HttpMethod.GET, "/api/video/all").permitAll()
+                        // ✅ Bug Fix #2: Video listing — public (no login required)
+                        .requestMatchers(HttpMethod.GET, "/api/video/all").permitAll()
 
-                // 🔒 Specific role-protected routes
-                .requestMatchers("/api/quiz/submit").hasRole("STUDENT")
-                .requestMatchers("/api/student/**").hasRole("STUDENT")
-                .requestMatchers("/api/teacher/**").hasRole("TEACHER")
+                        // 🔒 Batch management
+                        .requestMatchers("/api/batch/create").hasRole("TEACHER")
+                        .requestMatchers("/api/batch/join").hasRole("STUDENT")
+                        .requestMatchers("/api/batch/my").authenticated()
 
-                // 🔒 Video management — teachers only (upload, save, etc.)
-                .requestMatchers("/api/video/**").hasRole("TEACHER")
+                        // 🔒 Video management
+                        .requestMatchers(HttpMethod.POST, "/api/video/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/video/batch/**").authenticated()
 
-                // 🔒 Quiz video generation — public, quiz submit — student only
-                .requestMatchers("/api/quiz/video/**").permitAll()
+                        // 🔒 Quiz management
+                        .requestMatchers("/api/quiz/generate").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/quiz/**").authenticated()
+                        .requestMatchers("/api/quiz/submit").hasRole("STUDENT")
 
-                // 🔒 Class management
-                .requestMatchers("/api/class/create").hasRole("TEACHER")
-                .requestMatchers("/api/class/start/**").hasRole("TEACHER")
-                .requestMatchers("/api/class/join/**").hasRole("STUDENT")
-                .requestMatchers("/api/class/leave/**").hasRole("STUDENT")
-                .requestMatchers("/api/class/**").authenticated()
+                        // 🔒 Live Class management
+                        .requestMatchers("/api/live/create", "/api/live/start", "/api/live/end").hasRole("TEACHER")
+                        .requestMatchers("/api/live/status/**").authenticated()
+                        .requestMatchers("/api/ai/doubt").authenticated()
+                        .requestMatchers("/api/agora/token").authenticated()
 
-                // 🔒 User and video download — authenticated
-                .requestMatchers("/api/user/**").authenticated()
-                .requestMatchers("/api/video/download/**").authenticated()
+                        // 🔒 Other existing routes
+                        .requestMatchers("/api/student/**").hasRole("STUDENT")
+                        .requestMatchers("/api/teacher/**").hasRole("TEACHER")
+                        .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/api/video/download/**").authenticated()
 
-                // 🔒 Everything else
-                .anyRequest().authenticated()
-            )
+                        // 🔒 Everything else
+                        .anyRequest().authenticated())
 
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-}
+}

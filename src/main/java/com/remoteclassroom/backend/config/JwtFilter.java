@@ -3,6 +3,7 @@ package com.remoteclassroom.backend.config;
 import java.io.IOException;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,13 +11,16 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -24,51 +28,34 @@ public class JwtFilter extends OncePerRequestFilter {
                                    FilterChain filterChain)
             throws ServletException, IOException {
 
-        System.out.println("🔥 JWT FILTER HIT");
-        System.out.println("➡️ PATH: " + request.getRequestURI());
-
-        String header = request.getHeader("Authorization");
-
-        System.out.println("➡️ HEADER: " + header);
-
-        // ❌ No token → skip
-        if (header == null || !header.startsWith("Bearer ")) {
-            System.out.println("❌ No Bearer token");
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = header.substring(7);
-
         try {
-            String email = JwtUtil.extractEmail(token);
-            String role = JwtUtil.extractRole(token);
+            String header = request.getHeader("Authorization");
 
-            System.out.println("✅ EMAIL: " + email);
-            System.out.println("✅ ROLE: " + role);
+            if (header != null && header.startsWith("Bearer ")) {
+                String token = header.substring(7);
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                if (jwtUtil.validateToken(token)) {
+                    String email = jwtUtil.extractEmail(token);
+                    String role = jwtUtil.extractRole(token);
 
-                // ✅ IMPORTANT: ROLE must match Spring format
-                SimpleGrantedAuthority authority =
-                        new SimpleGrantedAuthority(role);
+                    String springRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
 
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(
-                                email,
-                                null,
-                                List.of(authority)
-                        );
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(
+                                    email,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority(springRole))
+                            );
 
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
 
-                SecurityContextHolder.getContext().setAuthentication(auth);
-
-                System.out.println("🎉 AUTH SET SUCCESS");
+                    log.info("JWT OK: {}", email);
+                }
             }
 
         } catch (Exception e) {
-            System.out.println("❌ JWT ERROR: " + e.getMessage());
+            log.error("JWT Filter error: {}", e.getMessage());
             SecurityContextHolder.clearContext();
         }
 

@@ -13,6 +13,7 @@ import com.remoteclassroom.backend.repository.QuizRepository;
 import com.remoteclassroom.backend.repository.StudentTopicMasteryRepository;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class AdaptiveQuizService {
 
     @Autowired
@@ -53,6 +54,8 @@ public class AdaptiveQuizService {
         quiz.setQuestionsJson(questionsJson);
         quiz.setCreatedAt(LocalDateTime.now());
         quiz.setVideo(video);
+        quiz.setBatch(video.getBatch());
+quiz.setTeacher(video.getTeacher());
 
         return quizRepository.save(quiz);
     }
