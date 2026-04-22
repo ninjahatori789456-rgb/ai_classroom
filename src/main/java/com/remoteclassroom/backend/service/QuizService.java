@@ -80,6 +80,10 @@ public class QuizService {
             Video video = videoRepository.findById(videoId)
                     .orElseThrow(() -> new RuntimeException("Video not found"));
 
+            if (video.getBatch() == null || video.getTeacher() == null) {
+                throw new RuntimeException("Video not properly linked to batch/teacher");
+            }
+
             // Check for existing quizzes FIRST
             List<Quiz> existingQuizzes = quizRepository.findByVideoOrderByIdDesc(video);
             if (existingQuizzes != null && !existingQuizzes.isEmpty()) {
