@@ -95,35 +95,53 @@ Generate EXACTLY 10 MCQs in English.
 Difficulty: %s
 %s
 
+IMPORTANT DISTRIBUTION:
+- 4 EASY questions
+- 3 MEDIUM questions
+- 3 HARD questions
+
 Rules:
 - Questions must be clear and concept-based
-- Avoid random questions
+- EASY → basic definition or direct concept
+- MEDIUM → application based
+- HARD → tricky or multi-concept
+- Avoid repetition
 
 STRICT JSON FORMAT:
 [
   {
     "question": "string",
     "options": ["A","B","C","D"],
-    "correctAnswer": "exact match",
-    "topic": "short topic"
+    "correctAnswer": "A/B/C/D",
+    "topic": "short topic",
+    "level": "EASY/MEDIUM/HARD"
   }
 ]
 
-Return ONLY JSON.
+VERY IMPORTANT:
+- correctAnswer MUST be exactly one of: A, B, C, D
+- It must match options
+- DO NOT return full text answer
+- DO NOT return explanation
+- Return ONLY JSON
 
 Lecture:
 %s
 """.formatted(
-                difficulty,
-                (weakTopic != null && !weakTopic.isBlank()
-                        ? "Focus MORE on weak topic: " + weakTopic
-                        : ""),
-                transcript
-        );
+        difficulty,
+        (weakTopic != null && !weakTopic.isBlank()
+                ? "Focus MORE on weak topic: " + weakTopic
+                : ""),
+        transcript
+);
 
         try {
             String rawResponse = callGeminiCoreWithRetry(prompt, 2, requestId);
             String cleaned = cleanJson(rawResponse, requestId);
+            if (cleaned == null || !cleaned.trim().startsWith("[")) {
+                log.warn("[{}] Cleaned response is not a valid JSON array. Using FALLBACK quiz.", requestId);
+                return FALLBACK_QUIZ;
+            }
             log.info("[{}] Successfully generated AI quiz.", requestId);
             return cleaned;
         } catch (Exception e) {

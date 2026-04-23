@@ -16,4 +16,5 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
 
     // ✅ FIX 3: videoId → quiz.video.id
     List<QuizAttempt> findByQuiz_Video_Id(Long videoId);
+    List<QuizAttempt> findByStudent_IdAndQuiz_Video_Id(Long userId, Long videoId);
 }

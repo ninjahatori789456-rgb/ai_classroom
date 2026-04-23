@@ -6,6 +6,9 @@ import com.remoteclassroom.backend.service.AIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+import org.springframework.security.core.Authentication;
+
 @RestController
 @RequestMapping("/api")
 public class AIController {
@@ -14,11 +17,36 @@ public class AIController {
     private AIService aiService;
 
     @PostMapping("/doubt")
-    public String solveDoubt(@RequestBody DoubtRequest request, org.springframework.security.core.Authentication auth) {
-        System.out.println("🔥 DOUBT HIT: " + request.getQuestion());
-        System.out.println("👤 USER: " + (auth != null ? auth.getName() : "NO AUTH"));
-        return aiService.getAnswer(
+public Map<String, Object> solveDoubt(
+        @RequestBody DoubtRequest request,
+        Authentication auth) {
+
+    try {
+        String raw = aiService.getAnswer(
                 request.getQuestion(),
                 request.getLanguage());
+
+        // 🔥 CLEAN TEXT (remove \n mess)
+        String cleaned = raw
+                .replace("\\n", "\n")
+                .replace("###", "")
+                .trim();
+
+        return Map.of(
+                "success", true,
+                "data", Map.of(
+                        "answer", cleaned
+                )
+        );
+
+    } catch (Exception e) {
+        e.printStackTrace();
+
+        return Map.of(
+                "success", false,
+                "message", "Failed to get answer",
+                "data", null
+        );
     }
+}
 }

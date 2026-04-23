@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.remoteclassroom.backend.model.Quiz;
 import com.remoteclassroom.backend.model.StudentTopicMastery;
@@ -13,7 +14,7 @@ import com.remoteclassroom.backend.repository.QuizRepository;
 import com.remoteclassroom.backend.repository.StudentTopicMasteryRepository;
 
 @Service
-@org.springframework.transaction.annotation.Transactional
+@Transactional
 public class AdaptiveQuizService {
 
     @Autowired
@@ -28,6 +29,15 @@ public class AdaptiveQuizService {
     @Autowired
     private AIService aiService;
 
+    // 🔥 SAFE: avoid null crash
+    public int getAttemptCount(Long userId, Long videoId) {
+        try {
+            return attemptService.getAttemptsByVideo(userId, videoId).size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public Quiz generateAdaptiveQuiz(Long userId, Video video) {
 
         String difficulty = attemptService.getUserDifficultyAdvanced(userId);
@@ -36,12 +46,13 @@ public class AdaptiveQuizService {
                 studentTopicMasteryRepository.findByStudent_IdOrderByMasteryLevelAsc(userId);
 
         String focusTopic = null;
-        if (!masteries.isEmpty()) {
-            // Get the topic with the lowest mastery level
+
+        if (masteries != null && !masteries.isEmpty()) {
             focusTopic = masteries.get(0).getTopicName();
         }
 
         String transcript = video.getTranscript();
+
         if (transcript == null || transcript.isBlank()) {
             throw new RuntimeException("Video has no transcript");
         }
@@ -49,13 +60,19 @@ public class AdaptiveQuizService {
         String questionsJson =
                 aiService.generateQuiz(transcript, difficulty, focusTopic);
 
+        // 🔥 SAFE: fallback
+        if (questionsJson == null || !questionsJson.trim().startsWith("[")) {
+            questionsJson = "[]";
+        }
+
         Quiz quiz = new Quiz();
         quiz.setDifficulty(difficulty);
         quiz.setQuestionsJson(questionsJson);
         quiz.setCreatedAt(LocalDateTime.now());
         quiz.setVideo(video);
         quiz.setBatch(video.getBatch());
-quiz.setTeacher(video.getTeacher());
+        quiz.setTeacher(video.getTeacher());
+        quiz.setTotalQuestions(10);
 
         return quizRepository.save(quiz);
     }

@@ -45,8 +45,15 @@ public class TranscriptionService {
             video.setTranscript(transcript);
             videoRepository.save(video);
 
-            // 🔥 ADD (auto quiz)
-            quizService.generateAndSaveQuiz(video.getId());
+            // 🔥 FIX: Generate quiz ONLY if not exists
+            boolean quizExists = quizService.getQuizByVideo(video.getId()).isPresent();
+
+            if (!quizExists) {
+                System.out.println("🔥 Generating quiz for video: " + videoId);
+                quizService.generateAndSaveQuiz(video.getId());
+            } else {
+                System.out.println("🔥 Quiz already exists for video: " + videoId);
+            }
 
         } catch (Exception e) {
             e.printStackTrace();

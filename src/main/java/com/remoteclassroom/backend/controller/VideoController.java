@@ -25,13 +25,13 @@ public class VideoController {
     @Autowired
     private VideoService videoService;
 
-    // ================= UPLOAD (OPTIONAL - FIXED) =================
+    // ================= UPLOAD =================
     @PreAuthorize("hasRole('TEACHER')")
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadVideo(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam("title") String title,
-            @RequestParam Long batchId,   // 🔥 FIX REQUIRED
+            @RequestParam Long batchId,
             @RequestParam(value = "transcript", required = false) String transcript,
             Authentication authentication
     ) {
@@ -42,7 +42,7 @@ public class VideoController {
                     title,
                     fileUrl,
                     authentication.getName(),
-                    batchId,   // 🔥 FIX
+                    batchId,
                     transcript
             );
 
@@ -68,13 +68,13 @@ public class VideoController {
         ));
     }
 
-    // ================= SAVE (MAIN FLOW) =================
+    // ================= SAVE =================
     @PreAuthorize("hasRole('TEACHER')")
     @PostMapping("/save")
     public ResponseEntity<?> saveVideo(
             @RequestParam String title,
             @RequestParam String url,
-            @RequestParam Long batchId,   // 🔥 CRITICAL
+            @RequestParam Long batchId,
             @RequestParam(required = false) String transcript,
             Authentication authentication
     ) {
@@ -98,8 +98,47 @@ public class VideoController {
         Video video = videoService.getById(videoId);
 
         return ResponseEntity.ok(Map.of(
-                "url", s3Service.generateDownloadUrl(video.getUrl(), video.getTitle())
+                "success", true,
+                "data", Map.of(
+                        "downloadUrl", s3Service.generateDownloadUrl(video.getUrl(), video.getTitle())
+                )
         ));
+    }
+
+    // ================= PLAYBACK =================
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/playback/{videoId}")
+    public ResponseEntity<?> getPlaybackUrl(@PathVariable Long videoId) {
+
+        try {
+            Video video = videoService.getById(videoId);
+
+            if (video == null || video.getUrl() == null) {
+                return ResponseEntity.ok(Map.of(
+                        "success", false,
+                        "message", "Video not found or not ready",
+                        "data", Map.of()
+                ));
+            }
+
+            // 🔥 FIX: Use signed playback URL
+            String playbackUrl = s3Service.generatePlaybackUrl(video.getUrl());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", Map.of(
+                            "url", playbackUrl,
+                            "title", video.getTitle()
+                    )
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "message", "Playback failed: " + e.getMessage(),
+                    "data", Map.of()
+            ));
+        }
     }
 
     // ================= LIST =================

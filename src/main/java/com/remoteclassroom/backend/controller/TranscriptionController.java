@@ -42,10 +42,16 @@ public class TranscriptionController {
             Video video = videoRepository.findById(videoId)
                     .orElseThrow(() -> new RuntimeException("Video not found"));
 
-            // CACHE CHECK
-            if (!force && video.getTranscript() != null && !video.getTranscript().isBlank()) {
-                System.out.println("🔥 API: Transcript already exists (CACHE HIT)");
-                return ResponseEntity.ok(video.getTranscript());
+            // ✅ FIXED CACHE CHECK (production safe)
+            String transcript = video.getTranscript();
+
+            if (!force && transcript != null && transcript.length() > 100) {
+                System.out.println("🔥 API: Transcript already exists (VALID CACHE HIT)");
+                return ResponseEntity.ok(java.util.Map.of(
+                        "status", "cached",
+                        "message", "Transcript already exists",
+                        "data", transcript
+                ));
             }
 
             // FIRE AND FORGET (ASYNC)
@@ -53,7 +59,7 @@ public class TranscriptionController {
 
             return ResponseEntity.accepted().body(java.util.Map.of(
                     "status", "processing",
-                    "message", "Video is being transcribed in the background. Note: this happens asynchronously now."
+                    "message", "Video is being transcribed in the background."
             ));
 
         } catch (Exception e) {

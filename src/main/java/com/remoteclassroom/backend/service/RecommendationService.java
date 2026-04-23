@@ -1,6 +1,7 @@
 package com.remoteclassroom.backend.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,24 +24,41 @@ public class RecommendationService {
     private final QuizAttemptRepository quizAttemptRepository;
 
     public List<RecommendationResponse> getRecommendations(Long studentId) {
-        List<StudentTopicMastery> masteries = masteryRepository.findByStudent_IdOrderByMasteryLevelAsc(studentId);
+
+        List<StudentTopicMastery> masteries =
+                masteryRepository.findByStudent_IdOrderByMasteryLevelAsc(studentId);
+
         List<RecommendationResponse> recommendations = new ArrayList<>();
 
-        // Generate recommendations for topics where mastery < 60%
+        if (masteries == null || masteries.isEmpty()) {
+            return recommendations;
+        }
+
+        // 🔥 PRIORITY BASED RECOMMENDATION
         for (StudentTopicMastery mastery : masteries) {
-            if (mastery.getMasteryLevel() < 60.0) {
+
+            double level = mastery.getMasteryLevel();
+
+            if (level < 40) {
                 recommendations.add(RecommendationResponse.builder()
-                        .type("RETAKE_QUIZ")
+                        .type("RETAKE_QUIZ_STRONG")
+                        .focus(mastery.getTopicName())
+                        .build());
+            } else if (level < 70) {
+                recommendations.add(RecommendationResponse.builder()
+                        .type("REVISE_TOPIC")
                         .focus(mastery.getTopicName())
                         .build());
             }
         }
-        
-        // If mastery is generally high, encourage a challenge
-        if (recommendations.isEmpty() && !masteries.isEmpty()) {
+
+        // 🔥 IF ALL GOOD → challenge mode
+        if (recommendations.isEmpty()) {
+            StudentTopicMastery strongest = masteries.get(masteries.size() - 1);
+
             recommendations.add(RecommendationResponse.builder()
                     .type("TAKE_ADVANCED_QUIZ")
-                    .focus(masteries.get(masteries.size() - 1).getTopicName()) // focus on their strongest topic for challenge
+                    .focus(strongest.getTopicName())
                     .build());
         }
 
@@ -48,14 +66,22 @@ public class RecommendationService {
     }
 
     public List<ProgressTrendResponse> getOverallTrend(Long studentId) {
-        List<QuizAttempt> attempts = quizAttemptRepository.findByStudent_Id(studentId);
-        
-        // Return recent trends (last 10)
+
+        List<QuizAttempt> attempts =
+                quizAttemptRepository.findByStudent_Id(studentId);
+
+        if (attempts == null || attempts.isEmpty()) {
+            return List.of();
+        }
+
         return attempts.stream()
-                .sorted((a, b) -> a.getId().compareTo(b.getId()))
+                // 🔥 FIX: sort by actual time
+                .sorted(Comparator.comparing(QuizAttempt::getAttemptedAt))
                 .skip(Math.max(0, attempts.size() - 10))
                 .map(attempt -> ProgressTrendResponse.builder()
-                        .date(attempt.getQuiz().getCreatedAt() != null ? attempt.getQuiz().getCreatedAt().toString() : "N/A")
+                        .date(attempt.getAttemptedAt() != null
+                                ? attempt.getAttemptedAt().toString()
+                                : "N/A")
                         .score(attempt.getScore())
                         .build())
                 .collect(Collectors.toList());
