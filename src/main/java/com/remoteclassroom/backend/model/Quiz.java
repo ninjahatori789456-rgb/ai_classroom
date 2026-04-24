@@ -10,7 +10,7 @@ import jakarta.persistence.*;
 @Table(name = "quiz", indexes = {
         @Index(name = "idx_quiz_video_id", columnList = "video_id"),
         @Index(name = "idx_quiz_batch_id", columnList = "batch_id"),
-        @Index(name = "idx_quiz_created_at", columnList = "createdAt")
+        @Index(name = "idx_quiz_created_at", columnList = "created_at")
 })
 public class Quiz {
 
@@ -35,7 +35,7 @@ public class Quiz {
     private String difficulty;
 
     // ✅ FIXED LOB ISSUE
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String questionsJson;
 
     private int totalQuestions;
