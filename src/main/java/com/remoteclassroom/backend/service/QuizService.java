@@ -34,6 +34,7 @@ public class QuizService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ================= GENERATE =================
+    @Transactional
     public QuizDTO generateAndSaveQuiz(Long videoId) {
         Quiz quiz = getOrGenerateQuiz(videoId, null);
         return mapToDTO(quiz);

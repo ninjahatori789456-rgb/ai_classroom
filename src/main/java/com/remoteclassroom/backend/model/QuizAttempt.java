@@ -19,7 +19,7 @@ public class QuizAttempt {
     @JoinColumn(name = "quiz_id")
     private Quiz quiz;
 
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String answersJson;
 
     private int score;
