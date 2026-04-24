@@ -29,10 +29,13 @@ public class AdaptiveQuizService {
     @Autowired
     private AIService aiService;
 
+    @Autowired
+    private QuizService quizService;
+
     // 🔥 SAFE: avoid null crash
     public int getAttemptCount(Long userId, Long videoId) {
         try {
-            return attemptService.getAttemptsByVideo(userId, videoId).size();
+            return attemptService.getAttemptCount(userId, videoId);
         } catch (Exception e) {
             return 0;
         }
@@ -61,9 +64,7 @@ public class AdaptiveQuizService {
                 aiService.generateQuiz(transcript, difficulty, focusTopic);
 
         // 🔥 SAFE: fallback
-        if (questionsJson == null || !questionsJson.trim().startsWith("[")) {
-            questionsJson = "[]";
-        }
+        int totalQuestions = quizService.validateQuestions(questionsJson).size();
 
         Quiz quiz = new Quiz();
         quiz.setDifficulty(difficulty);
@@ -72,7 +73,7 @@ public class AdaptiveQuizService {
         quiz.setVideo(video);
         quiz.setBatch(video.getBatch());
         quiz.setTeacher(video.getTeacher());
-        quiz.setTotalQuestions(10);
+        quiz.setTotalQuestions(totalQuestions);
 
         return quizRepository.save(quiz);
     }

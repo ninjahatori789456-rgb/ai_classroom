@@ -10,7 +10,7 @@ import jakarta.persistence.*;
 @Table(name = "quiz", indexes = {
         @Index(name = "idx_quiz_video_id", columnList = "video_id"),
         @Index(name = "idx_quiz_batch_id", columnList = "batch_id"),
-        @Index(name = "idx_quiz_created_at", columnList = "createdAt")
+        @Index(name = "idx_quiz_created_at", columnList = "created_at")
 })
 public class Quiz {
 
@@ -32,13 +32,19 @@ public class Quiz {
     @JoinColumn(name = "batch_id", nullable = false)
     private Batch batch;
 
+    @Column(name = "difficulty")
     private String difficulty;
 
     // ✅ FIXED LOB ISSUE
-    @Column(columnDefinition = "LONGTEXT")
+    @Lob
+    @Basic(fetch = FetchType.EAGER)
+    @Column(name = "questions_json", columnDefinition = "TEXT", nullable = false)
     private String questionsJson;
 
+    @Column(name = "total_questions", nullable = false)
     private int totalQuestions;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

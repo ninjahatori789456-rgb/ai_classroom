@@ -56,6 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/quiz/generate").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.GET, "/api/quiz/**").authenticated()
                         .requestMatchers("/api/quiz/submit").hasRole("STUDENT")
+                        .requestMatchers("/api/adaptive/quiz/**").hasRole("STUDENT")
 
                         // 🔒 Live Class management
                         .requestMatchers("/api/live/create", "/api/live/start", "/api/live/end").hasRole("TEACHER")

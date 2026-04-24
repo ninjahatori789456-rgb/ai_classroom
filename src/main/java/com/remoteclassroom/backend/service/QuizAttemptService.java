@@ -47,6 +47,13 @@ public class QuizAttemptService {
 
     @Transactional
     public QuizAttemptResponse submitQuiz(String email, QuizAttemptRequest request) {
+        if (request.getQuizId() == null) {
+            throw new RuntimeException("quizId is required");
+        }
+
+        if (request.getAnswers() == null || request.getAnswers().isEmpty()) {
+            throw new RuntimeException("answers are required");
+        }
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -78,7 +85,7 @@ if (!existingAttempts.isEmpty()) {
                 lastAttempt.getScore(),
                 questions.size(),
                 new ArrayList<>(), // optional
-                getDistinctQuizCount(user.getId(), quiz.getVideo().getId()) >= 3
+                getAttemptCount(user.getId(), quiz.getVideo().getId()) >= 3
         );
     }
 }
@@ -149,8 +156,8 @@ if (!existingAttempts.isEmpty()) {
             studentTopicMasteryRepository.save(mastery);
         }
 
-        int distinctQuizCount = getDistinctQuizCount(user.getId(), quiz.getVideo().getId());
-        boolean adaptiveUnlocked = distinctQuizCount >= 3;
+        int attemptCount = getAttemptCount(user.getId(), quiz.getVideo().getId());
+        boolean adaptiveUnlocked = attemptCount >= 3;
 
         return new QuizAttemptResponse(score, questions.size(), weakTopicsList, adaptiveUnlocked);
     }
@@ -181,6 +188,10 @@ if (!existingAttempts.isEmpty()) {
         }
 
         return uniqueQuizIds.size();
+    }
+
+    public int getAttemptCount(Long userId, Long videoId) {
+        return attemptRepository.findByStudent_IdAndQuiz_Video_Id(userId, videoId).size();
     }
 
     public List<QuizAttempt> getAttemptsByVideo(Long userId, Long videoId) {

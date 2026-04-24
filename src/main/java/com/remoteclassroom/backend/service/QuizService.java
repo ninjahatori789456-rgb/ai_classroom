@@ -1,9 +1,11 @@
 package com.remoteclassroom.backend.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,7 @@ public class QuizService {
     private AIService aiService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final TypeReference<List<Map<String, Object>>> QUESTION_LIST_TYPE = new TypeReference<>() {};
 
     // ================= GENERATE =================
     public QuizDTO generateAndSaveQuiz(Long videoId) {
@@ -146,9 +149,7 @@ public class QuizService {
 
         String questionsJson = aiService.generateQuiz(transcript, "MEDIUM", null);
 
-        if (questionsJson == null || !questionsJson.trim().startsWith("[")) {
-            questionsJson = "[]";
-        }
+        List<Map<String, Object>> questions = validateQuestions(questionsJson);
 
         Quiz quiz = new Quiz();
         quiz.setVideo(video);
@@ -156,8 +157,38 @@ public class QuizService {
         quiz.setBatch(video.getBatch());
         quiz.setQuestionsJson(questionsJson);
         quiz.setDifficulty("MEDIUM");
-        quiz.setTotalQuestions(10);
+        quiz.setTotalQuestions(questions.size());
 
         return quizRepository.save(quiz);
+    }
+
+    public List<Map<String, Object>> validateQuestions(String questionsJson) {
+        try {
+            if (questionsJson == null || questionsJson.isBlank()) {
+                throw new RuntimeException("AI did not return quiz questions");
+            }
+
+            String trimmed = questionsJson.trim();
+            if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+                throw new RuntimeException("AI returned invalid quiz JSON");
+            }
+
+            List<Map<String, Object>> questions = objectMapper.readValue(trimmed, QUESTION_LIST_TYPE);
+            List<Map<String, Object>> validQuestions = questions.stream()
+                    .filter(q -> q.get("question") != null)
+                    .filter(q -> q.get("options") instanceof List<?> options && options.size() >= 2)
+                    .filter(q -> q.get("correctAnswer") != null)
+                    .collect(Collectors.toList());
+
+            if (validQuestions.isEmpty()) {
+                throw new RuntimeException("AI returned no usable quiz questions");
+            }
+
+            return validQuestions;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("AI returned invalid quiz JSON", e);
+        }
     }
 }
