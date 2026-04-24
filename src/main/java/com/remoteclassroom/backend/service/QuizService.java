@@ -37,6 +37,7 @@ public class QuizService {
     private static final TypeReference<List<Map<String, Object>>> QUESTION_LIST_TYPE = new TypeReference<>() {};
 
     // ================= GENERATE =================
+    @Transactional
     public QuizDTO generateAndSaveQuiz(Long videoId) {
         Quiz quiz = getOrGenerateQuiz(videoId, null);
         return mapToDTO(quiz);

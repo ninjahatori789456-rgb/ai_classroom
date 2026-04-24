@@ -29,8 +29,6 @@ public class Video {
     private LocalDateTime uploadedAt;
 
     // ✅ FIX: Avoid LOB lazy crash
-    @Lob
-    @Basic(fetch = FetchType.EAGER)
     @Column(columnDefinition = "TEXT")
     private String transcript;
 
