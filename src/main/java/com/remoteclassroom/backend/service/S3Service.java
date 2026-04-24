@@ -83,6 +83,7 @@ public class S3Service {
                 .bucket(bucketName)
                 .key(key)
                 .responseContentDisposition(contentDisposition)
+                .responseContentType("video/mp4")
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
